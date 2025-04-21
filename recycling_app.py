@@ -1,6 +1,7 @@
 import sys
 import cv2
 import numpy as np
+import os
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -18,6 +19,9 @@ from ultralytics import YOLO
 import qrcode
 from PIL import Image
 import io
+
+# Qt platformunu ayarla
+os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 
 class RecyclingApp(QMainWindow):
@@ -148,6 +152,10 @@ class RecyclingApp(QMainWindow):
 
 
 if __name__ == "__main__":
+    # X11 görüntüleme sunucusuna bağlantıyı kontrol et
+    if "DISPLAY" not in os.environ:
+        os.environ["DISPLAY"] = ":0"
+
     app = QApplication(sys.argv)
     window = RecyclingApp()
     window.show()
