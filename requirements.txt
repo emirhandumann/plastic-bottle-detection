@@ -1,9 +1,5 @@
 flask==2.3.3
 ultralytics==8.0.196
-opencv-python==4.8.0.76
 numpy==1.24.3
 Pillow==10.0.0
-torch==2.0.1
-PyQt5==5.15.9
-qrcode==7.4.2
-picamera2==0.3.16 
+qrcode==7.4.2 
