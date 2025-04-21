@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QImage, QPixmap
 from picamera2 import Picamera2
+from libcamera import controls
 from ultralytics import YOLO
 import qrcode
 from PIL import Image
@@ -58,7 +59,10 @@ class RecyclingApp(QMainWindow):
         """Kamera ayarlarını yapılandır"""
         try:
             self.camera = Picamera2()
-            self.camera.configure(self.camera.create_preview_configuration())
+            config = self.camera.create_preview_configuration(main={"size": (800, 600)})
+            config["transform"] = controls.Transform(hflip=0, vflip=0)
+            self.camera.configure(config)
+            self.camera.set_controls({"FrameDurationLimits": (33333, 33333)})
             self.camera.start()
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"Kamera başlatılamadı: {str(e)}")
