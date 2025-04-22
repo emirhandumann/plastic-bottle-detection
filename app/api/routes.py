@@ -26,16 +26,24 @@ torch.serialization.add_safe_globals({
     'ultralytics.nn.tasks.DetectionModel': DetectionModel
 })
 
-# Kamera ayarları
-try:
-    picam2 = Picamera2()
-    preview_config = picam2.create_preview_configuration(main={"size": (1280, 720)})
-    picam2.configure(preview_config)
-    picam2.start()
-    print("Camera initialized successfully")
-except Exception as e:
-    print(f"Error initializing camera: {str(e)}")
-    picam2 = None
+# Global picam2 değişkeni
+picam2 = None
+
+def initialize_camera():
+    global picam2
+    try:
+        if picam2 is None:
+            picam2 = Picamera2()
+            preview_config = picam2.create_still_configuration(main={"size": (1280, 720)})
+            picam2.configure(preview_config)
+            picam2.start()
+            print("Camera initialized successfully")
+    except Exception as e:
+        print(f"Error initializing camera: {str(e)}")
+        picam2 = None
+
+# Kamerayı başlat
+initialize_camera()
 
 # Model yolunu düzelt
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -57,9 +65,15 @@ except Exception as e:
 
 @bp.route('/capture', methods=['GET'])
 def capture():
+    global picam2
+    
+    # Kamera bağlantısını kontrol et
     if picam2 is None:
-        return jsonify({'success': False, 'error': 'Camera not initialized'}), 500
-
+        try:
+            initialize_camera()
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Camera initialization failed: {str(e)}'}), 500
+    
     try:
         # Görüntü yakala
         image = picam2.capture_array()
@@ -82,6 +96,13 @@ def capture():
 
     except Exception as e:
         print(f"Capture error: {str(e)}")
+        # Hata durumunda kamerayı yeniden başlatmayı dene
+        try:
+            picam2.close()
+            picam2 = None
+            initialize_camera()
+        except:
+            pass
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @bp.route('/detect', methods=['POST'])
