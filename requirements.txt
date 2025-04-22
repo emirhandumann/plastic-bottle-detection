@@ -1,7 +1,10 @@
-numpy>=1.22.0
-torch==1.13.1
-torchvision==0.14.1
+# Ana paketler
+numpy>=1.19.5
+torch==1.9.0
+torchvision==0.10.0
 ultralytics==8.0.43
+
+# Web uygulama gereksinimleri
 flask==2.3.3
 Pillow==10.0.0
 qrcode==7.4.2
