@@ -5,18 +5,18 @@
     <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
         <div class="flex items-center space-x-2 mb-6">
             <i class="fas fa-camera text-green-600 text-2xl"></i>
-            <h2 class="text-2xl font-bold text-gray-800">Plastik Şişe Tespit Sistemi</h2>
+            <h2 class="text-2xl font-bold text-gray-800">Green Earn</h2>
         </div>
         
         <div class="relative rounded-lg overflow-hidden bg-black mb-6">
             <template x-if="imagePreview">
-                <img :src="imagePreview" class="w-full h-auto object-cover" alt="Kamera görüntüsü">
+                <img :src="imagePreview" class="w-full h-auto object-cover" alt="Camera image">
             </template>
             <template x-if="!imagePreview">
                 <div class="flex items-center justify-center h-64 text-gray-400">
                     <div class="text-center">
                         <i class="fas fa-camera text-4xl mb-2"></i>
-                        <p>Görüntü yok</p>
+                        <p>No image</p>
                     </div>
                 </div>
             </template>
@@ -27,7 +27,7 @@
             x-on:click="captureImage()" 
             x-bind:disabled="processing">
             <i class="fas" :class="processing ? 'fa-spinner fa-spin' : 'fa-camera'"></i>
-            <span x-text="processing ? 'İşleniyor...' : 'Şişe Tespit Et'"></span>
+            <span x-text="processing ? 'Processing...' : 'Detect Bottle'"></span>
         </button>
     </div>
 
@@ -40,7 +40,7 @@
              class="bg-white rounded-xl shadow-lg p-6">
             <div class="flex items-center space-x-2 mb-4">
                 <i class="fas fa-star text-yellow-500 text-xl"></i>
-                <h3 class="text-xl font-semibold text-gray-800">Toplam Puan</h3>
+                <h3 class="text-xl font-semibold text-gray-800">Total Points</h3>
             </div>
             <div class="text-4xl font-bold text-green-600" x-text="totalPoints"></div>
         </div>
@@ -53,7 +53,7 @@
              class="bg-white rounded-xl shadow-lg p-6">
             <div class="flex items-center space-x-2 mb-4">
                 <i class="fas fa-qrcode text-gray-700 text-xl"></i>
-                <h3 class="text-xl font-semibold text-gray-800">QR Kod</h3>
+                <h3 class="text-xl font-semibold text-gray-800">QR Code</h3>
             </div>
             <div class="flex justify-center">
                 <img :src="'data:image/png;base64,' + qrCode" 
