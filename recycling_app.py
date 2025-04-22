@@ -2,6 +2,12 @@ import sys
 import cv2
 import numpy as np
 import os
+
+# Qt platformunu X11'e zorla
+os.environ["QT_QPA_PLATFORM"] = "xcb"
+os.environ["XDG_SESSION_TYPE"] = "x11"
+os.environ["DISPLAY"] = ":0"
+
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -20,44 +26,45 @@ import qrcode
 from PIL import Image
 import io
 
-# Qt platformunu ayarla
-os.environ["QT_QPA_PLATFORM"] = "xcb"
-
 
 class RecyclingApp(QMainWindow):
     def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Plastik Şişe Geri Dönüşüm Sistemi")
-        self.setGeometry(100, 100, 800, 600)
+        try:
+            super().__init__()
+            self.setWindowTitle("Plastik Şişe Geri Dönüşüm Sistemi")
+            self.setGeometry(100, 100, 800, 600)
 
-        # Ana widget ve layout
-        main_widget = QWidget()
-        self.setCentralWidget(main_widget)
-        layout = QVBoxLayout(main_widget)
+            # Ana widget ve layout
+            main_widget = QWidget()
+            self.setCentralWidget(main_widget)
+            layout = QVBoxLayout(main_widget)
 
-        # Kamera önizleme etiketi
-        self.camera_label = QLabel()
-        self.camera_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.camera_label)
+            # Kamera önizleme etiketi
+            self.camera_label = QLabel()
+            self.camera_label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(self.camera_label)
 
-        # Geri dönüştür butonu
-        self.recycle_button = QPushButton("Geri Dönüştür")
-        self.recycle_button.clicked.connect(self.start_recycling_process)
-        layout.addWidget(self.recycle_button)
+            # Geri dönüştür butonu
+            self.recycle_button = QPushButton("Geri Dönüştür")
+            self.recycle_button.clicked.connect(self.start_recycling_process)
+            layout.addWidget(self.recycle_button)
 
-        # QR kod gösterim etiketi
-        self.qr_label = QLabel()
-        self.qr_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.qr_label)
+            # QR kod gösterim etiketi
+            self.qr_label = QLabel()
+            self.qr_label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(self.qr_label)
 
-        # Kamera ve model başlatma
-        self.setup_camera()
-        self.setup_model()
+            # Kamera ve model başlatma
+            self.setup_camera()
+            self.setup_model()
 
-        # Kamera önizleme zamanlayıcısı
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_camera_preview)
-        self.timer.start(30)  # 30ms = ~33 FPS
+            # Kamera önizleme zamanlayıcısı
+            self.timer = QTimer()
+            self.timer.timeout.connect(self.update_camera_preview)
+            self.timer.start(30)  # 30ms = ~33 FPS
+        except Exception as e:
+            print(f"Initialization error: {str(e)}")
+            raise
 
     def setup_camera(self):
         """Kamera ayarlarını yapılandır"""
@@ -152,11 +159,10 @@ class RecyclingApp(QMainWindow):
 
 
 if __name__ == "__main__":
-    # X11 görüntüleme sunucusuna bağlantıyı kontrol et
-    if "DISPLAY" not in os.environ:
-        os.environ["DISPLAY"] = ":0"
-
-    app = QApplication(sys.argv)
-    window = RecyclingApp()
-    window.show()
-    sys.exit(app.exec_())
+    try:
+        app = QApplication(sys.argv)
+        window = RecyclingApp()
+        window.show()
+        sys.exit(app.exec_())
+    except Exception as e:
+        print(f"Application error: {str(e)}")
