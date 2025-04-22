@@ -11,13 +11,23 @@ from PIL import Image
 import torch
 import sys
 
+# Güvenli yükleme için gerekli importlar
+from ultralytics.nn.tasks import DetectionModel
+import torch.serialization
+
 # CUDA kullanımını devre dışı bırak
 torch.backends.cudnn.enabled = False
+
+# Güvenli model yükleme için gerekli ayarlar
+torch.serialization.add_safe_globals({
+    'DetectionModel': DetectionModel,
+    'ultralytics.nn.tasks.DetectionModel': DetectionModel
+})
 
 # Model yolunu düzelt
 current_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), 
-                         "plastic_bottle_detection", "exp1", "weights", "best.pt")
+                         "plastic-bottle-detection","plastic_bottle_detection", "exp1", "weights", "best.pt")
 
 print(f"Model path: {model_path}")
 print(f"Model file exists: {os.path.exists(model_path)}")
@@ -25,7 +35,7 @@ print(f"Model file exists: {os.path.exists(model_path)}")
 # Model yükleme parametrelerini belirt
 try:
     # Güvenli mod için özel ayarlar
-    model = YOLO(model_path)
+    model = YOLO(model_path, task='detect')
     model.model.eval()  # Değerlendirme moduna al
     model.model.float()  # Float32 kullan
     model.model.cpu()   # CPU'ya taşı
