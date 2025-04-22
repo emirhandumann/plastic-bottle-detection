@@ -1,12 +1,9 @@
-# Ana paketler
-numpy>=1.19.5
-torch==1.9.0
-torchvision==0.10.0
-ultralytics==8.0.43
+# Ana paketler (numpy sistem paketi olarak yüklenmeli: sudo apt-get install python3-numpy)
+onnxruntime==1.15.1
+opencv-python-headless==4.8.1.78
 
 # Web uygulama gereksinimleri
 flask==2.3.3
 Pillow==10.0.0
 qrcode==7.4.2
-python-dotenv==1.0.0
-opencv-python-headless==4.8.1.78 
+python-dotenv==1.0.0 

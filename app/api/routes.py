@@ -7,18 +7,14 @@ import qrcode
 import io
 import os
 from PIL import Image
-import torch
-import sys
-import json
-from picamera2 import Picamera2
+import onnxruntime
 import time
-
-# CUDA kullanımını devre dışı bırak
-torch.backends.cudnn.enabled = False
+from picamera2 import Picamera2
 
 # Global değişkenler
 picam2 = None
 model = None
+session = None
 
 
 def cleanup_camera():
@@ -63,15 +59,14 @@ def initialize_camera():
 
 
 def load_model():
-    global model
+    global session
     try:
-        # Model yolunu düzelttik
         model_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
             "plastic_bottle_detection",
             "exp1",
             "weights",
-            "best.pt",
+            "best.onnx",
         )
 
         print(f"Model path: {model_path}")
@@ -80,17 +75,65 @@ def load_model():
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found at {model_path}")
 
-        # Model yükleme - basitleştirilmiş versiyon
-        from ultralytics import YOLO
-
-        model = YOLO(model_path)
+        # ONNX Runtime session oluştur
+        session = onnxruntime.InferenceSession(model_path)
 
         print("Model successfully loaded")
         return True
     except Exception as e:
         print(f"Error loading model: {str(e)}")
-        model = None
+        session = None
         return False
+
+
+def process_image(image):
+    # Görüntüyü ön işleme
+    img = cv2.resize(image, (640, 640))
+    img = img.transpose(2, 0, 1)  # HWC -> CHW
+    img = np.expand_dims(img, axis=0)
+    img = img.astype(np.float32) / 255.0  # Normalize
+
+    # Model girişi için isimler
+    input_name = session.get_inputs()[0].name
+
+    # Çıktı al
+    outputs = session.run(None, {input_name: img})
+
+    # Çıktıyı işle
+    boxes = outputs[0]  # Çıktı formatına göre ayarlanmalı
+    return process_detections(boxes[0], image.shape)
+
+
+def process_detections(boxes, original_shape):
+    detections = []
+    if len(boxes) > 0:
+        # Görüntü boyutlarını al
+        height, width = original_shape[:2]
+
+        for box in boxes:
+            if len(box) >= 6:  # x1, y1, x2, y2, confidence, class_id
+                x1, y1, x2, y2, conf, cls = box[:6]
+
+                # Koordinatları orijinal görüntü boyutuna ölçekle
+                x1 = int(x1 * width)
+                y1 = int(y1 * height)
+                x2 = int(x2 * width)
+                y2 = int(y2 * height)
+
+                # Şişe boyutuna göre puan hesapla
+                bottle_height = y2 - y1
+                points = calculate_points(bottle_height)
+
+                detections.append(
+                    {
+                        "bbox": [x1, y1, x2, y2],
+                        "confidence": float(conf),
+                        "class": int(cls),
+                        "points": points,
+                    }
+                )
+
+    return detections
 
 
 # Başlangıçta kamera ve modeli yükle
@@ -127,9 +170,9 @@ def capture():
 
 @bp.route("/detect", methods=["POST"])
 def detect():
-    global model
+    global session
 
-    if model is None and not load_model():
+    if session is None and not load_model():
         return jsonify({"success": False, "error": "Model loading failed"}), 500
 
     try:
@@ -139,37 +182,8 @@ def detect():
         image = Image.open(io.BytesIO(image_data))
         image_np = np.array(image)
 
-        # Predict with YOLO
-        with torch.no_grad():
-            results = model.predict(source=image_np, conf=0.25, device="cpu")
-
-        # Process results
-        detections = []
-        if len(results) > 0:
-            result = results[0]
-            if hasattr(result, "boxes") and len(result.boxes) > 0:
-                for box in result.boxes:
-                    try:
-                        xyxy = box.xyxy[0].cpu().numpy()
-                        x1, y1, x2, y2 = map(float, xyxy)
-                        conf = float(box.conf[0].cpu().numpy())
-                        cls = int(box.cls[0].cpu().numpy())
-
-                        # Calculate points based on bottle size
-                        height = y2 - y1
-                        points = calculate_points(height)
-
-                        detections.append(
-                            {
-                                "bbox": [x1, y1, x2, y2],
-                                "confidence": conf,
-                                "class": cls,
-                                "points": points,
-                            }
-                        )
-                    except Exception as box_error:
-                        print(f"Error processing box: {str(box_error)}")
-                        continue
+        # Process image and get detections
+        detections = process_image(image_np)
 
         # Generate QR code
         qr_data = generate_qr_code(sum(d["points"] for d in detections))
