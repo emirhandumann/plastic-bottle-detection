@@ -227,10 +227,10 @@ def detect():
 def calculate_points(height):
     """Şişe boyutuna göre puan hesapla"""
     print(f"Calculating points for height: {height}")
-    if height < 100:
+    if height < 5000:
         points = 10  # Küçük şişe
         size = "small"
-    elif height < 200:
+    elif height < 10000:
         points = 20  # Orta şişe
         size = "medium"
     else:
