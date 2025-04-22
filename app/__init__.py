@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 from config import Config
 
 def create_app():
@@ -7,5 +7,9 @@ def create_app():
 
     from app.api import bp as api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
+
+    @app.route('/')
+    def index():
+        return render_template('index.html')
 
     return app 

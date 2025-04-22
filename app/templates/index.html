@@ -1,36 +1,95 @@
-{% extends "base.html" %}
-
-{% block content %}
-<div x-data="bottleDetector" class="max-w-3xl mx-auto">
-    <!-- Kamera Önizleme -->
-    <div class="mb-6 bg-white p-4 rounded-lg shadow">
-        <h2 class="text-xl font-semibold mb-4">Kamera Önizleme</h2>
-        <div class="relative aspect-video bg-black rounded">
-            <video id="camera" class="w-full h-full rounded" autoplay playsinline></video>
-            <canvas id="overlay" class="absolute top-0 left-0 w-full h-full"></canvas>
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plastik Şişe Tespit</title>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        #camera {
+            width: 100%;
+            border-radius: 5px;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        .button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .qr-code {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .qr-code img {
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="bottleDetector">
+        <h1>Plastik Şişe Tespit Sistemi</h1>
+        
+        <div class="video-container">
+            <video id="camera" autoplay playsinline></video>
+            <canvas id="overlay"></canvas>
         </div>
-    </div>
 
-    <!-- Kontroller -->
-    <div class="flex gap-4 mb-6">
         <button 
-            @click="captureImage" 
-            class="flex-1 bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 transition"
-            :disabled="processing"
-        >
-            <span x-text="processing ? 'İşleniyor...' : 'Geri Dönüştür'"></span>
+            class="button" 
+            x-on:click="captureImage()" 
+            x-bind:disabled="processing"
+            x-text="processing ? 'İşleniyor...' : 'Şişe Tespit Et'">
         </button>
-    </div>
 
-    <!-- Sonuçlar -->
-    <div x-show="qrCode" class="bg-white p-4 rounded-lg shadow">
-        <h2 class="text-xl font-semibold mb-4">QR Kod</h2>
-        <div class="flex justify-center">
-            <img :src="'data:image/png;base64,' + qrCode" class="w-48 h-48">
+        <div class="results" x-show="totalPoints > 0">
+            <h2>Toplam Puan: <span x-text="totalPoints"></span></h2>
         </div>
-        <div class="mt-4 text-center">
-            <p class="text-lg">Toplam Puan: <span x-text="totalPoints"></span></p>
+
+        <div class="qr-code" x-show="qrCode">
+            <h3>QR Kod</h3>
+            <img :src="'data:image/png;base64,' + qrCode" alt="QR Code">
         </div>
     </div>
-</div>
-{% endblock %} 
+</body>
+</html> 
