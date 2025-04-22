@@ -1,6 +1,5 @@
 from flask import jsonify, request
 from app.api import bp
-from ultralytics import YOLO
 import cv2
 import numpy as np
 import base64
@@ -12,76 +11,85 @@ import torch
 import sys
 import json
 from picamera2 import Picamera2
-
-# Güvenli yükleme için gerekli importlar
-from ultralytics.nn.tasks import DetectionModel
-import torch.serialization
+import time
+from ultralytics import YOLO
 
 # CUDA kullanımını devre dışı bırak
 torch.backends.cudnn.enabled = False
 
-# Güvenli model yükleme için gerekli ayarlar
-torch.serialization.add_safe_globals({
-    'DetectionModel': DetectionModel,
-    'ultralytics.nn.tasks.DetectionModel': DetectionModel
-})
-
-# Global picam2 değişkeni
+# Global değişkenler
 picam2 = None
+model = None
+
+def cleanup_camera():
+    global picam2
+    try:
+        if picam2 is not None:
+            picam2.close()
+            picam2 = None
+            time.sleep(1)  # Kameranın kapanması için bekle
+    except Exception as e:
+        print(f"Camera cleanup error: {str(e)}")
 
 def initialize_camera():
     global picam2
     try:
-        if picam2 is None:
-            picam2 = Picamera2()
-            preview_config = picam2.create_still_configuration(main={"size": (1280, 720)})
-            picam2.configure(preview_config)
-            picam2.start()
-            print("Camera initialized successfully")
+        cleanup_camera()  # Önceki kamera bağlantısını temizle
+        
+        picam2 = Picamera2()
+        preview_config = picam2.create_still_configuration(
+            main={"size": (1280, 720), "format": "RGB888"}
+        )
+        picam2.configure(preview_config)
+        picam2.start()
+        time.sleep(1)  # Kameranın başlaması için bekle
+        print("Camera initialized successfully")
+        return True
     except Exception as e:
         print(f"Error initializing camera: {str(e)}")
         picam2 = None
+        return False
 
-# Kamerayı başlat
+def load_model():
+    global model
+    try:
+        # Model yolunu düzelt
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), 
+                                "plastic-bottle-detection", "plastic_bottle_detection", "exp1", "weights", "best.pt")
+        
+        print(f"Model path: {model_path}")
+        print(f"Model file exists: {os.path.exists(model_path)}")
+        
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file not found at {model_path}")
+        
+        # Model yükleme
+        model = YOLO(model_path, task='detect')
+        model.to('cpu')
+        print("Model successfully loaded")
+        return True
+    except Exception as e:
+        print(f"Error loading model: {str(e)}")
+        model = None
+        return False
+
+# Başlangıçta kamera ve modeli yükle
 initialize_camera()
-
-# Model yolunu düzelt
-current_dir = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), 
-                         "plastic-bottle-detection","plastic_bottle_detection", "exp1", "weights", "best.pt")
-
-print(f"Model path: {model_path}")
-print(f"Model file exists: {os.path.exists(model_path)}")
-
-# Model yükleme parametrelerini belirt
-try:
-    # Model yükleme ayarları
-    model = YOLO(model_path)
-    model.to('cpu')  # CPU'ya zorla
-    print("Model successfully loaded")
-except Exception as e:
-    print(f"Error loading model: {str(e)}")
-    model = None
+load_model()
 
 @bp.route('/capture', methods=['GET'])
 def capture():
     global picam2
     
-    # Kamera bağlantısını kontrol et
-    if picam2 is None:
-        try:
-            initialize_camera()
-        except Exception as e:
-            return jsonify({'success': False, 'error': f'Camera initialization failed: {str(e)}'}), 500
+    if picam2 is None or not initialize_camera():
+        return jsonify({'success': False, 'error': 'Camera initialization failed'}), 500
     
     try:
         # Görüntü yakala
         image = picam2.capture_array()
         
-        # BGR'den RGB'ye çevir
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
-        # PIL Image'e çevir
+        # PIL Image'e çevir (zaten RGB formatında)
         pil_image = Image.fromarray(image)
         
         # Base64'e çevir
@@ -96,19 +104,15 @@ def capture():
 
     except Exception as e:
         print(f"Capture error: {str(e)}")
-        # Hata durumunda kamerayı yeniden başlatmayı dene
-        try:
-            picam2.close()
-            picam2 = None
-            initialize_camera()
-        except:
-            pass
+        cleanup_camera()  # Hata durumunda kamerayı temizle
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @bp.route('/detect', methods=['POST'])
 def detect():
-    if model is None:
-        return jsonify({'success': False, 'error': 'Model not loaded'}), 500
+    global model
+    
+    if model is None and not load_model():
+        return jsonify({'success': False, 'error': 'Model loading failed'}), 500
 
     try:
         # Get image from request
@@ -118,27 +122,33 @@ def detect():
         image_np = np.array(image)
 
         # Predict with YOLO
-        results = model(image_np, device='cpu', half=False)  # CPU'da float32 olarak çalıştır
-
+        results = model.predict(source=image_np, conf=0.25, device='cpu')
+        
         # Process results
         detections = []
-        for result in results:
-            boxes = result.boxes
-            for box in boxes:
-                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()  # CPU'ya taşı
-                conf = float(box.conf[0].cpu().numpy())
-                cls = int(box.cls[0].cpu().numpy())
-                
-                # Calculate points based on bottle size
-                height = y2 - y1
-                points = calculate_points(height)
-                
-                detections.append({
-                    'bbox': [float(x1), float(y1), float(x2), float(y2)],
-                    'confidence': conf,
-                    'class': cls,
-                    'points': points
-                })
+        if len(results) > 0:
+            result = results[0]
+            if hasattr(result, 'boxes') and len(result.boxes) > 0:
+                for box in result.boxes:
+                    try:
+                        xyxy = box.xyxy[0].cpu().numpy()
+                        x1, y1, x2, y2 = map(float, xyxy)
+                        conf = float(box.conf[0].cpu().numpy())
+                        cls = int(box.cls[0].cpu().numpy())
+                        
+                        # Calculate points based on bottle size
+                        height = y2 - y1
+                        points = calculate_points(height)
+                        
+                        detections.append({
+                            'bbox': [x1, y1, x2, y2],
+                            'confidence': conf,
+                            'class': cls,
+                            'points': points
+                        })
+                    except Exception as box_error:
+                        print(f"Error processing box: {str(box_error)}")
+                        continue
 
         # Generate QR code
         qr_data = generate_qr_code(sum(d['points'] for d in detections))
