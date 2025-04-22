@@ -80,10 +80,15 @@ def load_model():
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found at {model_path}")
 
-        # Model yükleme kodunu güncelledik
+        # Güvenli global tanımlamaları ekledik
+        import torch.serialization
+
+        torch.serialization.safe_globals(["ultralytics.nn.tasks.DetectionModel"])
+
+        # Model yükleme
         from ultralytics import YOLO
 
-        model = YOLO(model_path)  # weights_only parametresini kaldırdık
+        model = YOLO(model_path, task="detect")
 
         # Model ayarları
         model.to("cpu")
