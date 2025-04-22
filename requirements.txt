@@ -6,4 +6,4 @@ python-dotenv==1.0.0
 opencv-python-headless==4.8.1.78
 torch==1.13.1
 torchvision==0.14.1
-ultralytics==8.0.196 
+ultralytics==8.0.43 
