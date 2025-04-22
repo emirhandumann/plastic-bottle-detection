@@ -34,16 +34,9 @@ print(f"Model file exists: {os.path.exists(model_path)}")
 
 # Model yükleme parametrelerini belirt
 try:
-    # Güvenli mod için özel ayarlar
-    model = YOLO(model_path, task='detect')
-    model.model.eval()  # Değerlendirme moduna al
-    model.model.float()  # Float32 kullan
-    model.model.cpu()   # CPU'ya taşı
-    
-    # Güvenli yükleme için ek ayarlar
-    torch.set_grad_enabled(False)  # Gradyanları devre dışı bırak
-    os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
-    
+    # Model yükleme ayarları
+    model = YOLO(model_path)
+    model.to('cpu')  # CPU'ya zorla
     print("Model successfully loaded")
 except Exception as e:
     print(f"Error loading model: {str(e)}")
@@ -60,43 +53,28 @@ def detect():
         image = Image.open(file.stream)
         image_np = np.array(image)
 
-        # Predict with YOLO (güvenli mod ayarları)
-        with torch.no_grad():
-            results = model.predict(
-                source=image_np,
-                device='cpu',
-                half=False,
-                imgsz=640,
-                conf=0.25,
-                save=False
-            )
+        # Predict with YOLO
+        results = model(image_np, device='cpu', half=False)  # CPU'da float32 olarak çalıştır
 
         # Process results
         detections = []
-        if len(results) > 0:
-            result = results[0]  # İlk sonucu al
-            if hasattr(result, 'boxes') and len(result.boxes) > 0:
-                for box in result.boxes:
-                    try:
-                        # Numpy array'e dönüştür
-                        xyxy = box.xyxy[0].cpu().numpy()
-                        x1, y1, x2, y2 = map(float, xyxy)
-                        conf = float(box.conf[0].cpu().numpy())
-                        cls = int(box.cls[0].cpu().numpy())
-                        
-                        # Calculate points based on bottle size
-                        height = y2 - y1
-                        points = calculate_points(height)
-                        
-                        detections.append({
-                            'bbox': [x1, y1, x2, y2],
-                            'confidence': conf,
-                            'class': cls,
-                            'points': points
-                        })
-                    except Exception as box_error:
-                        print(f"Error processing box: {str(box_error)}")
-                        continue
+        for result in results:
+            boxes = result.boxes
+            for box in boxes:
+                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()  # CPU'ya taşı
+                conf = float(box.conf[0].cpu().numpy())
+                cls = int(box.cls[0].cpu().numpy())
+                
+                # Calculate points based on bottle size
+                height = y2 - y1
+                points = calculate_points(height)
+                
+                detections.append({
+                    'bbox': [float(x1), float(y1), float(x2), float(y2)],
+                    'confidence': conf,
+                    'class': cls,
+                    'points': points
+                })
 
         # Generate QR code
         qr_data = generate_qr_code(sum(d['points'] for d in detections))
