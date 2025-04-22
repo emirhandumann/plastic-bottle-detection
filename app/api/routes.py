@@ -15,8 +15,8 @@ picam2 = None
 net = None
 INPUT_WIDTH = 640
 INPUT_HEIGHT = 640
-CONFIDENCE_THRESHOLD = 0.25
-NMS_THRESHOLD = 0.45
+CONFIDENCE_THRESHOLD = 0.45
+NMS_THRESHOLD = 0.2
 
 
 def cleanup_camera():
@@ -109,10 +109,14 @@ def process_image(image):
     # Sonuçları işle
     detections = []
     detection_count = 0
+
+    # Tüm tespitleri topla
+    boxes = []
+    confidences = []
+
     for detection in outputs[0]:
         confidence = detection[4]
         if confidence > CONFIDENCE_THRESHOLD:
-            detection_count += 1
             x = detection[0]
             y = detection[1]
             w = detection[2]
@@ -124,12 +128,31 @@ def process_image(image):
             x2 = int((x + w / 2) * width)
             y2 = int((y + h / 2) * height)
 
-            # Şişe boyutuna göre puan hesapla
+            boxes.append([x1, y1, x2 - x1, y2 - y1])
+            confidences.append(float(confidence))
+
+    # Non-maximum suppression uygula
+    if boxes:
+        indices = cv2.dnn.NMSBoxes(
+            boxes, confidences, CONFIDENCE_THRESHOLD, NMS_THRESHOLD
+        )
+
+        for i in indices:
+            idx = i
+            box = boxes[idx]
+            x1 = box[0]
+            y1 = box[1]
+            w = box[2]
+            h = box[3]
+            x2 = x1 + w
+            y2 = y1 + h
+
+            detection_count += 1
             bottle_height = y2 - y1
             points = calculate_points(bottle_height)
 
             print(f"Detection {detection_count}:")
-            print(f"  - Confidence: {confidence:.2f}")
+            print(f"  - Confidence: {confidences[idx]:.2f}")
             print(f"  - Coordinates: ({x1}, {y1}) to ({x2}, {y2})")
             print(f"  - Bottle height: {bottle_height} pixels")
             print(f"  - Points awarded: {points}")
@@ -137,7 +160,7 @@ def process_image(image):
             detections.append(
                 {
                     "bbox": [x1, y1, x2, y2],
-                    "confidence": float(confidence),
+                    "confidence": confidences[idx],
                     "class": 0,  # Sadece şişe sınıfı var
                     "points": points,
                 }
