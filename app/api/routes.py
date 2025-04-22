@@ -12,7 +12,6 @@ import sys
 import json
 from picamera2 import Picamera2
 import time
-from ultralytics import YOLO
 
 # CUDA kullanımını devre dışı bırak
 torch.backends.cudnn.enabled = False
@@ -25,9 +24,10 @@ def cleanup_camera():
     global picam2
     try:
         if picam2 is not None:
+            picam2.stop()
             picam2.close()
             picam2 = None
-            time.sleep(1)  # Kameranın kapanması için bekle
+            time.sleep(2)  # Kameranın tamamen kapanması için bekle
     except Exception as e:
         print(f"Camera cleanup error: {str(e)}")
 
@@ -35,16 +35,24 @@ def initialize_camera():
     global picam2
     try:
         cleanup_camera()  # Önceki kamera bağlantısını temizle
+        time.sleep(1)  # Sistem kaynaklarının serbest kalması için bekle
         
         picam2 = Picamera2()
-        preview_config = picam2.create_still_configuration(
+        preview_config = picam2.create_preview_configuration(
             main={"size": (1280, 720), "format": "RGB888"}
         )
         picam2.configure(preview_config)
-        picam2.start()
-        time.sleep(1)  # Kameranın başlaması için bekle
-        print("Camera initialized successfully")
-        return True
+        
+        try:
+            picam2.start()
+            time.sleep(2)  # Kameranın başlaması için bekle
+            print("Camera initialized successfully")
+            return True
+        except Exception as start_error:
+            print(f"Camera start error: {str(start_error)}")
+            cleanup_camera()
+            return False
+            
     except Exception as e:
         print(f"Error initializing camera: {str(e)}")
         picam2 = None
@@ -63,10 +71,20 @@ def load_model():
         
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found at {model_path}")
+
+        # YOLO model yükleme ayarları
+        import torch.nn as nn
+        from ultralytics.nn.tasks import DetectionModel
+        torch.nn.Module.dump_patches = True
         
         # Model yükleme
-        model = YOLO(model_path, task='detect')
+        from ultralytics import YOLO
+        model = YOLO(model_path)
+        
+        # Model ayarları
         model.to('cpu')
+        model.eval()
+        
         print("Model successfully loaded")
         return True
     except Exception as e:
@@ -122,7 +140,8 @@ def detect():
         image_np = np.array(image)
 
         # Predict with YOLO
-        results = model.predict(source=image_np, conf=0.25, device='cpu')
+        with torch.no_grad():
+            results = model.predict(source=image_np, conf=0.25, device='cpu')
         
         # Process results
         detections = []
