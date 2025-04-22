@@ -7,14 +7,16 @@ import qrcode
 import io
 import os
 from PIL import Image
-import onnxruntime
 import time
 from picamera2 import Picamera2
 
 # Global değişkenler
 picam2 = None
-model = None
-session = None
+net = None
+INPUT_WIDTH = 640
+INPUT_HEIGHT = 640
+CONFIDENCE_THRESHOLD = 0.25
+NMS_THRESHOLD = 0.45
 
 
 def cleanup_camera():
@@ -59,79 +61,81 @@ def initialize_camera():
 
 
 def load_model():
-    global session
+    global net
     try:
-        model_path = os.path.join(
+        weights_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
             "plastic_bottle_detection",
             "exp1",
             "weights",
-            "best.onnx",
+            "best.pt",
+        )
+        cfg_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "plastic_bottle_detection",
+            "exp1",
+            "weights",
+            "best.yaml",
         )
 
-        print(f"Model path: {model_path}")
-        print(f"Model file exists: {os.path.exists(model_path)}")
+        print(f"Weights path: {weights_path}")
+        print(f"Config path: {cfg_path}")
+        print(f"Files exist: {os.path.exists(weights_path)} {os.path.exists(cfg_path)}")
 
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f"Model file not found at {model_path}")
+        if not os.path.exists(weights_path) or not os.path.exists(cfg_path):
+            raise FileNotFoundError(f"Model files not found")
 
-        # ONNX Runtime session oluştur
-        session = onnxruntime.InferenceSession(model_path)
+        # YOLOv8 modelini OpenCV ile yükle
+        net = cv2.dnn.readNetFromONNX(weights_path)
 
         print("Model successfully loaded")
         return True
     except Exception as e:
         print(f"Error loading model: {str(e)}")
-        session = None
+        net = None
         return False
 
 
 def process_image(image):
-    # Görüntüyü ön işleme
-    img = cv2.resize(image, (640, 640))
-    img = img.transpose(2, 0, 1)  # HWC -> CHW
-    img = np.expand_dims(img, axis=0)
-    img = img.astype(np.float32) / 255.0  # Normalize
+    height, width = image.shape[:2]
 
-    # Model girişi için isimler
-    input_name = session.get_inputs()[0].name
+    # Görüntüyü hazırla
+    blob = cv2.dnn.blobFromImage(
+        image, 1 / 255.0, (INPUT_WIDTH, INPUT_HEIGHT), swapRB=True, crop=False
+    )
+    net.setInput(blob)
 
-    # Çıktı al
-    outputs = session.run(None, {input_name: img})
+    # Çıktıları al
+    outputs = net.forward()
 
-    # Çıktıyı işle
-    boxes = outputs[0]  # Çıktı formatına göre ayarlanmalı
-    return process_detections(boxes[0], image.shape)
-
-
-def process_detections(boxes, original_shape):
+    # Sonuçları işle
     detections = []
-    if len(boxes) > 0:
-        # Görüntü boyutlarını al
-        height, width = original_shape[:2]
+    for detection in outputs[0]:
+        confidence = detection[4]
+        if confidence > CONFIDENCE_THRESHOLD:
+            x = detection[0]
+            y = detection[1]
+            w = detection[2]
+            h = detection[3]
 
-        for box in boxes:
-            if len(box) >= 6:  # x1, y1, x2, y2, confidence, class_id
-                x1, y1, x2, y2, conf, cls = box[:6]
+            # Koordinatları orijinal görüntü boyutuna ölçekle
+            x1 = int((x - w / 2) * width)
+            y1 = int((y - h / 2) * height)
+            x2 = int((x + w / 2) * width)
+            y2 = int((y + h / 2) * height)
 
-                # Koordinatları orijinal görüntü boyutuna ölçekle
-                x1 = int(x1 * width)
-                y1 = int(y1 * height)
-                x2 = int(x2 * width)
-                y2 = int(y2 * height)
+            # Şişe boyutuna göre puan hesapla
+            bottle_height = y2 - y1
+            points = calculate_points(bottle_height)
 
-                # Şişe boyutuna göre puan hesapla
-                bottle_height = y2 - y1
-                points = calculate_points(bottle_height)
-
-                detections.append(
-                    {
-                        "bbox": [x1, y1, x2, y2],
-                        "confidence": float(conf),
-                        "class": int(cls),
-                        "points": points,
-                    }
-                )
+            detections.append(
+                {
+                    "bbox": [x1, y1, x2, y2],
+                    "confidence": float(confidence),
+                    "class": 0,  # Sadece şişe sınıfı var
+                    "points": points,
+                }
+            )
 
     return detections
 
@@ -170,9 +174,9 @@ def capture():
 
 @bp.route("/detect", methods=["POST"])
 def detect():
-    global session
+    global net
 
-    if session is None and not load_model():
+    if net is None and not load_model():
         return jsonify({"success": False, "error": "Model loading failed"}), 500
 
     try:

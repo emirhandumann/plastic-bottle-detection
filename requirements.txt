@@ -1,8 +1,5 @@
 # Ana paketler (numpy sistem paketi olarak yüklenmeli: sudo apt-get install python3-numpy)
-onnxruntime==1.15.1
-opencv-python-headless==4.8.1.78
-
-# Web uygulama gereksinimleri
+opencv-python==4.8.1.78
 flask==2.3.3
 Pillow==10.0.0
 qrcode==7.4.2
