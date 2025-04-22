@@ -11,17 +11,27 @@
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
 </head>
-<body class="bg-gray-100">
-    <nav class="bg-green-600 text-white p-4">
-        <div class="container mx-auto">
-            <h1 class="text-2xl font-bold">Plastik Şişe Geri Dönüşüm</h1>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-green-600 shadow-lg">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-recycle text-white text-2xl"></i>
+                    <h1 class="text-2xl font-bold text-white">Plastik Şişe Geri Dönüşüm</h1>
+                </div>
+            </div>
         </div>
     </nav>
 
-    <main class="container mx-auto p-4">
+    <main class="container mx-auto p-4 md:p-6">
         {% block content %}{% endblock %}
     </main>
 

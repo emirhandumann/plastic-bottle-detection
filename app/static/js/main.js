@@ -1,99 +1,51 @@
 document.addEventListener('alpine:init', () => {
     Alpine.data('bottleDetector', () => ({
-        processing: false,
-        qrCode: null,
-        totalPoints: 0,
         imagePreview: null,
-
-        async init() {
-            // Başlangıçta bir şey yapmaya gerek yok
-        },
+        processing: false,
+        totalPoints: 0,
+        qrCode: null,
 
         async captureImage() {
-            if (this.processing) return;
-            this.processing = true;
-
             try {
-                // Raspberry Pi kamerasından görüntü al
-                const response = await fetch('/api/capture', {
-                    method: 'GET'
-                });
-
-                if (!response.ok) {
-                    throw new Error('Görüntü alma hatası');
-                }
-
-                const result = await response.json();
+                this.processing = true;
                 
-                if (result.success) {
-                    // Görüntüyü göster
-                    this.imagePreview = 'data:image/jpeg;base64,' + result.image;
+                // Kamera görüntüsünü al
+                const response = await fetch('/api/capture');
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.imagePreview = `data:image/jpeg;base64,${data.image}`;
                     
-                    // Görüntüyü analiz et
+                    // Görüntüyü işle ve şişeleri tespit et
                     const detectResponse = await fetch('/api/detect', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            image: result.image
+                            image: data.image
                         })
                     });
-
-                    const detectResult = await detectResponse.json();
-
-                    if (detectResult.success) {
-                        this.qrCode = detectResult.qr_code;
-                        this.totalPoints = detectResult.detections.reduce((sum, d) => sum + d.points, 0);
-                        this.drawDetections(detectResult.detections);
+                    
+                    const detectData = await detectResponse.json();
+                    
+                    if (detectData.success) {
+                        this.totalPoints = detectData.detections.reduce((sum, d) => sum + d.points, 0);
+                        this.qrCode = detectData.qr_code;
                     } else {
-                        throw new Error(detectResult.error || 'Tespit hatası');
+                        console.error('Tespit hatası:', detectData.error);
+                        alert('Şişe tespiti sırasında bir hata oluştu.');
                     }
                 } else {
-                    throw new Error(result.error || 'Görüntü alınamadı');
+                    console.error('Kamera hatası:', data.error);
+                    alert('Kamera görüntüsü alınamadı.');
                 }
-            } catch (err) {
-                console.error('İşlem hatası:', err);
-                alert('Hata: ' + err.message);
+            } catch (error) {
+                console.error('İşlem hatası:', error);
+                alert('Bir hata oluştu. Lütfen tekrar deneyin.');
             } finally {
                 this.processing = false;
             }
-        },
-
-        drawDetections(detections) {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                
-                // Orijinal görüntüyü çiz
-                ctx.drawImage(img, 0, 0);
-
-                // Tespitleri çiz
-                ctx.strokeStyle = '#00ff00';
-                ctx.lineWidth = 2;
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#00ff00';
-
-                detections.forEach(det => {
-                    const [x1, y1, x2, y2] = det.bbox;
-                    const width = x2 - x1;
-                    const height = y2 - y1;
-
-                    // Kutu çiz
-                    ctx.strokeRect(x1, y1, width, height);
-
-                    // Etiket çiz
-                    const label = `Şişe: ${Math.round(det.confidence * 100)}% - ${det.points} puan`;
-                    ctx.fillText(label, x1, y1 - 5);
-                });
-
-                // Sonucu göster
-                this.imagePreview = canvas.toDataURL('image/jpeg');
-            };
-            img.src = this.imagePreview;
         }
     }));
 }); 
