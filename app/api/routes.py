@@ -94,6 +94,7 @@ def load_model():
 
 def process_image(image):
     height, width = image.shape[:2]
+    print(f"Input image size: {width}x{height}")
 
     # Görüntüyü hazırla
     blob = cv2.dnn.blobFromImage(
@@ -103,12 +104,15 @@ def process_image(image):
 
     # Çıktıları al
     outputs = net.forward()
+    print(f"Network output shape: {outputs.shape}")
 
     # Sonuçları işle
     detections = []
+    detection_count = 0
     for detection in outputs[0]:
         confidence = detection[4]
         if confidence > CONFIDENCE_THRESHOLD:
+            detection_count += 1
             x = detection[0]
             y = detection[1]
             w = detection[2]
@@ -124,6 +128,12 @@ def process_image(image):
             bottle_height = y2 - y1
             points = calculate_points(bottle_height)
 
+            print(f"Detection {detection_count}:")
+            print(f"  - Confidence: {confidence:.2f}")
+            print(f"  - Coordinates: ({x1}, {y1}) to ({x2}, {y2})")
+            print(f"  - Bottle height: {bottle_height} pixels")
+            print(f"  - Points awarded: {points}")
+
             detections.append(
                 {
                     "bbox": [x1, y1, x2, y2],
@@ -133,6 +143,9 @@ def process_image(image):
                 }
             )
 
+    total_points = sum(d["points"] for d in detections)
+    print(f"Total detections: {len(detections)}")
+    print(f"Total points: {total_points}")
     return detections
 
 
@@ -182,13 +195,29 @@ def detect():
         image = Image.open(io.BytesIO(image_data))
         image_np = np.array(image)
 
+        print("\n=== New Detection Request ===")
+        print(f"Input image shape: {image_np.shape}")
+
         # Process image and get detections
         detections = process_image(image_np)
 
         # Generate QR code
-        qr_data = generate_qr_code(sum(d["points"] for d in detections))
+        total_points = sum(d["points"] for d in detections)
+        print(f"Final total points: {total_points}")
+        qr_data = generate_qr_code(total_points)
 
-        return jsonify({"success": True, "detections": detections, "qr_code": qr_data})
+        return jsonify(
+            {
+                "success": True,
+                "detections": detections,
+                "qr_code": qr_data,
+                "debug_info": {
+                    "num_detections": len(detections),
+                    "individual_points": [d["points"] for d in detections],
+                    "total_points": total_points,
+                },
+            }
+        )
 
     except Exception as e:
         print(f"Detection error: {str(e)}")
@@ -197,12 +226,18 @@ def detect():
 
 def calculate_points(height):
     """Şişe boyutuna göre puan hesapla"""
+    print(f"Calculating points for height: {height}")
     if height < 100:
-        return 10  # Küçük şişe
+        points = 10  # Küçük şişe
+        size = "small"
     elif height < 200:
-        return 20  # Orta şişe
+        points = 20  # Orta şişe
+        size = "medium"
     else:
-        return 30  # Büyük şişe
+        points = 30  # Büyük şişe
+        size = "large"
+    print(f"Bottle size: {size}, Points: {points}")
+    return points
 
 
 def generate_qr_code(points):
