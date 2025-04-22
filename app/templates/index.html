@@ -21,21 +21,17 @@
             border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .video-container {
+        .image-container {
             position: relative;
             width: 100%;
             margin-bottom: 20px;
-        }
-        #camera {
-            width: 100%;
+            background-color: #000;
             border-radius: 5px;
+            overflow: hidden;
         }
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
+        .preview-image {
             width: 100%;
-            height: 100%;
+            display: block;
         }
         .button {
             background-color: #4CAF50;
@@ -46,6 +42,7 @@
             cursor: pointer;
             font-size: 16px;
             margin: 10px 0;
+            width: 100%;
         }
         .button:disabled {
             background-color: #cccccc;
@@ -70,9 +67,15 @@
     <div class="container" x-data="bottleDetector">
         <h1>Plastik Şişe Tespit Sistemi</h1>
         
-        <div class="video-container">
-            <video id="camera" autoplay playsinline></video>
-            <canvas id="overlay"></canvas>
+        <div class="image-container">
+            <template x-if="imagePreview">
+                <img :src="imagePreview" class="preview-image" alt="Kamera görüntüsü">
+            </template>
+            <template x-if="!imagePreview">
+                <div style="padding: 20px; text-align: center; color: white;">
+                    Görüntü yok
+                </div>
+            </template>
         </div>
 
         <button 

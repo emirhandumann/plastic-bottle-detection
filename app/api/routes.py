@@ -10,6 +10,8 @@ import os
 from PIL import Image
 import torch
 import sys
+import json
+from picamera2 import Picamera2
 
 # Güvenli yükleme için gerekli importlar
 from ultralytics.nn.tasks import DetectionModel
@@ -23,6 +25,17 @@ torch.serialization.add_safe_globals({
     'DetectionModel': DetectionModel,
     'ultralytics.nn.tasks.DetectionModel': DetectionModel
 })
+
+# Kamera ayarları
+try:
+    picam2 = Picamera2()
+    preview_config = picam2.create_preview_configuration(main={"size": (1280, 720)})
+    picam2.configure(preview_config)
+    picam2.start()
+    print("Camera initialized successfully")
+except Exception as e:
+    print(f"Error initializing camera: {str(e)}")
+    picam2 = None
 
 # Model yolunu düzelt
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +55,35 @@ except Exception as e:
     print(f"Error loading model: {str(e)}")
     model = None
 
+@bp.route('/capture', methods=['GET'])
+def capture():
+    if picam2 is None:
+        return jsonify({'success': False, 'error': 'Camera not initialized'}), 500
+
+    try:
+        # Görüntü yakala
+        image = picam2.capture_array()
+        
+        # BGR'den RGB'ye çevir
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        # PIL Image'e çevir
+        pil_image = Image.fromarray(image)
+        
+        # Base64'e çevir
+        buffered = io.BytesIO()
+        pil_image.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+        
+        return jsonify({
+            'success': True,
+            'image': img_str
+        })
+
+    except Exception as e:
+        print(f"Capture error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 400
+
 @bp.route('/detect', methods=['POST'])
 def detect():
     if model is None:
@@ -49,8 +91,9 @@ def detect():
 
     try:
         # Get image from request
-        file = request.files['image']
-        image = Image.open(file.stream)
+        data = request.get_json()
+        image_data = base64.b64decode(data['image'])
+        image = Image.open(io.BytesIO(image_data))
         image_np = np.array(image)
 
         # Predict with YOLO
