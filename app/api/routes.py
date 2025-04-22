@@ -8,17 +8,33 @@ import qrcode
 import io
 import os
 from PIL import Image
+import torch
+
+# CUDA kullanımını devre dışı bırak
+torch.backends.cudnn.enabled = False
 
 # Model yolunu düzelt
 current_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), 
                          "plastic_bottle_detection", "exp1", "weights", "best.pt")
 
+print(f"Model path: {model_path}")
+print(f"Model file exists: {os.path.exists(model_path)}")
+
 # Model yükleme parametrelerini belirt
-model = YOLO(model_path, task='detect')
+try:
+    model = YOLO(model_path, task='detect')
+    model.to('cpu')  # CPU'ya zorla
+    print("Model successfully loaded")
+except Exception as e:
+    print(f"Error loading model: {str(e)}")
+    model = None
 
 @bp.route('/detect', methods=['POST'])
 def detect():
+    if model is None:
+        return jsonify({'success': False, 'error': 'Model not loaded'}), 500
+
     try:
         # Get image from request
         file = request.files['image']
@@ -26,16 +42,16 @@ def detect():
         image_np = np.array(image)
 
         # Predict with YOLO
-        results = model(image_np, device='cpu')  # CPU'da çalıştır
+        results = model(image_np, device='cpu', half=False)  # CPU'da float32 olarak çalıştır
 
         # Process results
         detections = []
         for result in results:
             boxes = result.boxes
             for box in boxes:
-                x1, y1, x2, y2 = box.xyxy[0]
-                conf = float(box.conf[0])
-                cls = int(box.cls[0])
+                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()  # CPU'ya taşı
+                conf = float(box.conf[0].cpu().numpy())
+                cls = int(box.cls[0].cpu().numpy())
                 
                 # Calculate points based on bottle size
                 height = y2 - y1
@@ -58,6 +74,7 @@ def detect():
         })
 
     except Exception as e:
+        print(f"Detection error: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 400
 
 def calculate_points(height):
