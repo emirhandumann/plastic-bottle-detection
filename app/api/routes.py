@@ -65,8 +65,14 @@ def initialize_camera():
 def load_model():
     global model
     try:
-
-        model_path = "/home/saritay/Desktop/yolo-model-service/plastic-bottle-detection/plastic_bottle_detection/exp1/weights/best.pt"
+        # Model yolunu düzelttik
+        model_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "plastic_bottle_detection",
+            "exp1",
+            "weights",
+            "best.pt",
+        )
 
         print(f"Model path: {model_path}")
         print(f"Model file exists: {os.path.exists(model_path)}")
@@ -74,15 +80,10 @@ def load_model():
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found at {model_path}")
 
-        # Güvenli global tanımlamaları
-        import torch.serialization
-
-        torch.serialization.safe_globals(["ultralytics.nn.tasks.DetectionModel"])
-
-        # Model yükleme
+        # Model yükleme kodunu güncelledik
         from ultralytics import YOLO
 
-        model = YOLO(model_path, weights_only=False)
+        model = YOLO(model_path)  # weights_only parametresini kaldırdık
 
         # Model ayarları
         model.to("cpu")
