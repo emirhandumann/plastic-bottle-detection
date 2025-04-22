@@ -6,9 +6,16 @@ import numpy as np
 import base64
 import qrcode
 import io
+import os
 from PIL import Image
 
-model = YOLO("plastic_bottle_detection/exp1/weights/best.pt")
+# Model yolunu düzelt
+current_dir = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), 
+                         "plastic_bottle_detection", "exp1", "weights", "best.pt")
+
+# Model yükleme parametrelerini belirt
+model = YOLO(model_path, task='detect')
 
 @bp.route('/detect', methods=['POST'])
 def detect():
@@ -19,7 +26,7 @@ def detect():
         image_np = np.array(image)
 
         # Predict with YOLO
-        results = model(image_np)
+        results = model(image_np, device='cpu')  # CPU'da çalıştır
 
         # Process results
         detections = []
