@@ -15,7 +15,7 @@ picam2 = None
 net = None
 INPUT_WIDTH = 640
 INPUT_HEIGHT = 640
-CONFIDENCE_THRESHOLD = 0.45
+CONFIDENCE_THRESHOLD = 0.70
 NMS_THRESHOLD = 0.2
 
 
@@ -114,9 +114,17 @@ def process_image(image):
     boxes = []
     confidences = []
 
+    # Her bir tespit için
     for detection in outputs[0]:
-        confidence = detection[4]
+        # Sınıf olasılıklarını al (5. elemandan sonrası)
+        scores = detection[5:]
+        # En yüksek olasılığa sahip sınıfı bul
+        class_id = np.argmax(scores)
+        confidence = scores[class_id]
+
+        # Güven eşiğini kontrol et
         if confidence > CONFIDENCE_THRESHOLD:
+            # Normalize edilmiş koordinatları al
             x = detection[0]
             y = detection[1]
             w = detection[2]
@@ -128,10 +136,19 @@ def process_image(image):
             x2 = int((x + w / 2) * width)
             y2 = int((y + h / 2) * height)
 
-            boxes.append([x1, y1, x2 - x1, y2 - y1])
-            confidences.append(float(confidence))
+            # Görüntü sınırlarını kontrol et
+            x1 = max(0, x1)
+            y1 = max(0, y1)
+            x2 = min(width, x2)
+            y2 = min(height, y2)
+
+            # Geçerli bir kutu mu kontrol et
+            if x2 > x1 and y2 > y1:
+                boxes.append([x1, y1, x2 - x1, y2 - y1])
+                confidences.append(float(confidence))
 
     # Non-maximum suppression uygula
+    detections = []
     if boxes:
         indices = cv2.dnn.NMSBoxes(
             boxes, confidences, CONFIDENCE_THRESHOLD, NMS_THRESHOLD
@@ -152,7 +169,7 @@ def process_image(image):
             points = calculate_points(bottle_height)
 
             print(f"Detection {detection_count}:")
-            print(f"  - Confidence: {confidences[idx]:.2f}")
+            print(f"  - Confidence: {confidences[idx]*100:.2f}%")
             print(f"  - Coordinates: ({x1}, {y1}) to ({x2}, {y2})")
             print(f"  - Bottle height: {bottle_height} pixels")
             print(f"  - Points awarded: {points}")
