@@ -12,22 +12,57 @@ document.addEventListener('alpine:init', () => {
             this.canvas = document.getElementById('overlay');
 
             try {
-                this.stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'environment',
+                // Raspberry Pi kamera modülü için özel ayarlar
+                const constraints = {
+                    video: {
                         width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    } 
-                });
-                this.video.srcObject = this.stream;
+                        height: { ideal: 720 },
+                        deviceId: undefined
+                    }
+                };
+
+                // Mevcut kameraları listele
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                console.log('Bulunan kameralar:', videoDevices);
+
+                if (videoDevices.length > 0) {
+                    // Raspberry Pi kamera modülünü bul
+                    const rpiCamera = videoDevices.find(device => 
+                        device.label.toLowerCase().includes('rpi') || 
+                        device.label.toLowerCase().includes('raspberry') ||
+                        device.label.toLowerCase().includes('camera module')
+                    );
+
+                    if (rpiCamera) {
+                        console.log('Raspberry Pi kamera modülü bulundu:', rpiCamera.label);
+                        constraints.video.deviceId = { exact: rpiCamera.deviceId };
+                    } else {
+                        console.log('Varsayılan kamera kullanılıyor');
+                        constraints.video.deviceId = { exact: videoDevices[0].deviceId };
+                    }
+
+                    this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    this.video.srcObject = this.stream;
+                    
+                    // Video hazır olduğunda
+                    this.video.onloadedmetadata = () => {
+                        this.video.play();
+                        // Canvas boyutlarını ayarla
+                        this.canvas.width = this.video.videoWidth;
+                        this.canvas.height = this.video.videoHeight;
+                    };
+                } else {
+                    throw new Error('Hiç kamera bulunamadı');
+                }
             } catch (err) {
                 console.error('Kamera erişim hatası:', err);
-                alert('Kameraya erişilemedi!');
+                alert('Kameraya erişilemedi! Hata: ' + err.message);
             }
         },
 
         async captureImage() {
-            if (this.processing) return;
+            if (this.processing || !this.video || !this.stream) return;
             this.processing = true;
 
             try {
@@ -40,9 +75,6 @@ document.addEventListener('alpine:init', () => {
 
                 // Base64'e çevir
                 const imageData = canvas.toDataURL('image/jpeg');
-                const base64Data = imageData.split(',')[1];
-
-                // Blob oluştur
                 const blob = await (await fetch(imageData)).blob();
                 const formData = new FormData();
                 formData.append('image', blob, 'capture.jpg');
@@ -60,23 +92,21 @@ document.addEventListener('alpine:init', () => {
                     this.totalPoints = result.detections.reduce((sum, d) => sum + d.points, 0);
                     this.drawDetections(result.detections);
                 } else {
-                    throw new Error(result.error);
+                    throw new Error(result.error || 'API hatası');
                 }
             } catch (err) {
                 console.error('İşlem hatası:', err);
-                alert('Bir hata oluştu!');
+                alert('Görüntü işleme hatası: ' + err.message);
             } finally {
                 this.processing = false;
             }
         },
 
         drawDetections(detections) {
+            if (!this.canvas) return;
+            
             const ctx = this.canvas.getContext('2d');
             ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            
-            // Canvas boyutlarını video boyutlarına ayarla
-            this.canvas.width = this.video.videoWidth;
-            this.canvas.height = this.video.videoHeight;
 
             ctx.strokeStyle = '#00ff00';
             ctx.lineWidth = 2;
