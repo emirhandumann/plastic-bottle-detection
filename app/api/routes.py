@@ -68,25 +68,21 @@ def load_model():
             "plastic_bottle_detection",
             "exp1",
             "weights",
-            "best.pt",
-        )
-        cfg_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "plastic_bottle_detection",
-            "exp1",
-            "weights",
-            "best.yaml",
+            "best.onnx",
         )
 
         print(f"Weights path: {weights_path}")
-        print(f"Config path: {cfg_path}")
-        print(f"Files exist: {os.path.exists(weights_path)} {os.path.exists(cfg_path)}")
+        print(f"Model file exists: {os.path.exists(weights_path)}")
 
-        if not os.path.exists(weights_path) or not os.path.exists(cfg_path):
-            raise FileNotFoundError(f"Model files not found")
+        if not os.path.exists(weights_path):
+            raise FileNotFoundError(f"Model file not found at {weights_path}")
 
         # YOLOv8 modelini OpenCV ile yükle
         net = cv2.dnn.readNetFromONNX(weights_path)
+
+        # CUDA kullanılabilirse aktif et
+        net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+        net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)  # Raspberry Pi'de CPU kullan
 
         print("Model successfully loaded")
         return True
