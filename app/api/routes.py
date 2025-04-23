@@ -6,8 +6,10 @@ import base64
 import qrcode
 import io
 import os
-from PIL import Image
+import json
 import time
+import hashlib
+from PIL import Image
 from picamera2 import Picamera2
 
 # Global değişkenler
@@ -424,9 +426,8 @@ def generate_qr_code(points):
         "points": points,
         "timestamp": int(time.time()),  # Unix timestamp
         "version": "1.0",
-        # secret key
         "checksum": hashlib.sha256(
-            f"{points}:{int(time.time())}:secret_key".encode()
+            f"{points}:{int(time.time())}:green_earn_secret".encode()
         ).hexdigest(),
     }
 
