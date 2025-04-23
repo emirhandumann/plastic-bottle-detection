@@ -15,8 +15,8 @@ picam2 = None
 net = None
 INPUT_WIDTH = 640
 INPUT_HEIGHT = 640
-CONFIDENCE_THRESHOLD = 0.55
-NMS_THRESHOLD = 0.2
+CONFIDENCE_THRESHOLD = 0.45
+NMS_THRESHOLD = 0.4
 
 
 def cleanup_camera():
@@ -94,7 +94,7 @@ def load_model():
 
 def process_image(image):
     height, width = image.shape[:2]
-    print(f"Input image size: {width}x{height}")
+    print(f"Input image shape: {width}x{height}")
 
     # Görüntüyü hazırla
     blob = cv2.dnn.blobFromImage(
@@ -117,8 +117,8 @@ def process_image(image):
     print("\n=== Debug: Tüm Tespitler ===")
     # Her bir tespit için
     for i, detection in enumerate(outputs[0]):
-        # Confidence değerini doğrudan al (4. indeks)
-        confidence = float(detection[4])
+        # Sigmoid fonksiyonu ile normalize et
+        confidence = 1 / (1 + np.exp(-float(detection[4])))
 
         # Debug için tüm yüksek olasılıklı tespitleri göster
         if confidence > 0.3:  # Daha düşük bir eşik ile debug
@@ -132,10 +132,10 @@ def process_image(image):
         # Güven eşiğini kontrol et
         if confidence > CONFIDENCE_THRESHOLD:
             # Normalize edilmiş koordinatları al
-            x = detection[0]
-            y = detection[1]
-            w = detection[2]
-            h = detection[3]
+            x = float(detection[0])
+            y = float(detection[1])
+            w = float(detection[2])
+            h = float(detection[3])
 
             # Koordinatları orijinal görüntü boyutuna ölçekle
             x1 = int((x - w / 2) * width)
@@ -152,26 +152,28 @@ def process_image(image):
             # Geçerli bir kutu mu kontrol et
             if x2 > x1 and y2 > y1 and w > 0 and h > 0:
                 boxes.append([x1, y1, x2 - x1, y2 - y1])
-                confidences.append(confidence)
+                confidences.append(float(confidence))
 
     print("\n=== Debug: NMS Öncesi ===")
     print(f"NMS öncesi tespit sayısı: {len(boxes)}")
 
     # Non-maximum suppression uygula
     detections = []
-    if boxes:
+    if len(boxes) > 0:
+        boxes = np.array(boxes)
+        confidences = np.array(confidences)
         indices = cv2.dnn.NMSBoxes(
-            boxes, confidences, CONFIDENCE_THRESHOLD, NMS_THRESHOLD
-        )
+            boxes.tolist(), confidences.tolist(), CONFIDENCE_THRESHOLD, NMS_THRESHOLD
+        ).flatten()
+
         print(f"NMS sonrası tespit sayısı: {len(indices)}")
 
-        for i in indices:
-            idx = i
+        for idx in indices:
             box = boxes[idx]
-            x1 = box[0]
-            y1 = box[1]
-            w = box[2]
-            h = box[3]
+            x1 = int(box[0])
+            y1 = int(box[1])
+            w = int(box[2])
+            h = int(box[3])
             x2 = x1 + w
             y2 = y1 + h
 
@@ -188,7 +190,7 @@ def process_image(image):
             detections.append(
                 {
                     "bbox": [x1, y1, x2, y2],
-                    "confidence": confidences[idx],
+                    "confidence": float(confidences[idx]),
                     "class": 0,  # Sadece şişe sınıfı var
                     "points": points,
                 }
