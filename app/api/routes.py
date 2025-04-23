@@ -15,7 +15,7 @@ picam2 = None
 net = None
 INPUT_WIDTH = 640
 INPUT_HEIGHT = 640
-CONFIDENCE_THRESHOLD = 0.25
+CONFIDENCE_THRESHOLD = 0.30
 NMS_THRESHOLD = 0.4
 
 
@@ -418,14 +418,24 @@ def visualize_detections(image, detections, save_path="debug_detection.jpg"):
 
 
 def generate_qr_code(points):
-    """Puan bilgisini içeren QR kod oluştur"""
+    """Generate QR code with points and timestamp"""
+    qr_data = {
+        "type": "green_earn_points",
+        "points": points,
+        "timestamp": int(time.time()),  # Unix timestamp
+        "version": "1.0",
+        # secret key
+        "checksum": hashlib.sha256(
+            f"{points}:{int(time.time())}:secret_key".encode()
+        ).hexdigest(),
+    }
+
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data(f"points:{points}")
+    qr.add_data(json.dumps(qr_data))
     qr.make(fit=True)
 
     img = qr.make_image(fill_color="black", back_color="white")
 
-    # Convert to base64
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode()
