@@ -15,7 +15,7 @@ picam2 = None
 net = None
 INPUT_WIDTH = 640
 INPUT_HEIGHT = 640
-CONFIDENCE_THRESHOLD = 0.45
+CONFIDENCE_THRESHOLD = 0.25
 NMS_THRESHOLD = 0.4
 
 
@@ -34,19 +34,19 @@ def cleanup_camera():
 def initialize_camera():
     global picam2
     try:
-        cleanup_camera()  # Önceki kamera bağlantısını temizle
-        time.sleep(2)  # Daha uzun bir bekleme süresi ekleyin
+        cleanup_camera()
+        time.sleep(3)  # Longer wait after cleanup
 
         picam2 = Picamera2()
-        # Kamera konfigürasyonunu basitleştirelim
+        # Simplified camera configuration
         preview_config = picam2.create_preview_configuration(
-            main={"size": (640, 480), "format": "RGB888"}  # Daha düşük çözünürlük
+            main={"size": (640, 480), "format": "RGB888"}
         )
         picam2.configure(preview_config)
 
         try:
-            picam2.start(show_preview=False)  # preview'i kapatın
-            time.sleep(3)  # Kameranın başlaması için daha uzun bekleyin
+            picam2.start(show_preview=False)
+            time.sleep(5)  # Longer wait after start
             print("Camera initialized successfully")
             return True
         except Exception as start_error:
@@ -156,7 +156,7 @@ def process_image(image):
                 print(f"  - Confidence: {max_score*100:.2f}%")
                 print(f"  - Coordinates: x={x1}, y={y1}, w={box_width}, h={box_height}")
 
-    elif outputs.shape[1] == 5:  # Handle your specific output format
+    elif outputs.shape[1] == 5:  # Your specific output format
         rows = outputs.shape[2]
         print(f"Number of potential detections: {rows}")
 
@@ -177,13 +177,21 @@ def process_image(image):
                     f"  - Raw coordinates: x={outputs[0, 0, i]}, y={outputs[0, 1, i]}, w={outputs[0, 2, i]}, h={outputs[0, 3, i]}"
                 )
 
-            # Check confidence threshold
-            if confidence > CONFIDENCE_THRESHOLD:
+            # Check confidence threshold (use a slightly lower threshold here)
+            if confidence > 0.25:  # Lower threshold for now
                 # Get normalized coordinates
                 x = float(outputs[0, 0, i])
                 y = float(outputs[0, 1, i])
                 w = float(outputs[0, 2, i])
                 h = float(outputs[0, 3, i])
+
+                # Validate coordinates (sometimes models output raw values, not normalized)
+                if x > 1.0 or y > 1.0:  # Raw pixel values detected
+                    # Convert to normalized coordinates
+                    x = x / width
+                    y = y / height
+                    w = w / width
+                    h = h / height
 
                 # Scale to image dimensions
                 x1 = int((x - w / 2) * width)
@@ -198,7 +206,7 @@ def process_image(image):
                 box_height = min(box_height, height - y1)
 
                 # Skip tiny boxes
-                if box_width <= 1 or box_height <= 1:
+                if box_width <= 5 or box_height <= 5:
                     continue
 
                 boxes.append([x1, y1, box_width, box_height])
@@ -325,6 +333,13 @@ def detect():
         # Process image and get detections
         detections = process_image(image_np)
 
+        # Inside the detect route after processing
+        if detections:
+            # Generate visualization
+            vis_image = visualize_detections(image_np, detections)
+        else:
+            print("No detections found for visualization")
+
         # Generate QR code
         total_points = sum(d["points"] for d in detections)
         print(f"Final total points: {total_points}")
@@ -352,14 +367,14 @@ def calculate_points(height):
     """Calculate points based on bottle height"""
     print(f"Calculating points for height: {height}")
 
-    # Adjusted thresholds based on actual image dimensions (640x480)
-    if height < 50:  # Too small, likely false positive
+    # Based on your terminal output, bottles appear to have heights around 400-500 pixels
+    if height < 100:  # Too small, likely false positive
         points = 0
         size = "too small - rejected"
-    elif height < 100:  # Small bottle
+    elif height < 300:  # Small bottle
         points = 10
         size = "small"
-    elif height < 200:  # Medium bottle
+    elif height < 450:  # Medium bottle
         points = 20
         size = "medium"
     else:  # Large bottle
@@ -368,6 +383,38 @@ def calculate_points(height):
 
     print(f"Bottle size: {size}, Points: {points}")
     return points
+
+
+def visualize_detections(image, detections, save_path="debug_detection.jpg"):
+    """Draw bounding boxes on the image for debugging"""
+    vis_image = image.copy()
+
+    # Draw all boxes from the detection step
+    for det in detections:
+        x1, y1, x2, y2 = det["bbox"]
+        conf = det["confidence"]
+        points = det["points"]
+
+        # Draw rectangle
+        cv2.rectangle(vis_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+        # Display confidence and points
+        label = f"{conf:.2f}, {points}pts"
+        cv2.putText(
+            vis_image,
+            label,
+            (x1, y1 - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            2,
+        )
+
+    # Save the visualized image
+    cv2.imwrite(save_path, vis_image)
+    print(f"Debug visualization saved to {save_path}")
+
+    return vis_image
 
 
 def generate_qr_code(points):
