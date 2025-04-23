@@ -345,7 +345,7 @@ def detect():
         # Generate QR code
         total_points = sum(d["points"] for d in detections)
         print(f"Final total points: {total_points}")
-        qr_data = generate_qr_code(total_points)
+        qr_data = generate_qr_code(total_points, detections)
 
         return jsonify(
             {
@@ -419,11 +419,30 @@ def visualize_detections(image, detections, save_path="debug_detection.jpg"):
     return vis_image
 
 
-def generate_qr_code(points):
-    """Generate QR code with points and timestamp"""
+def generate_qr_code(points, detections):
+    """Generate QR code with points, bottle counts and timestamp"""
+    # Şişe boyutlarını say
+    small_bottles = 0
+    medium_bottles = 0
+    large_bottles = 0
+
+    for det in detections:
+        height = det["bbox"][3] - det["bbox"][1]  # y2 - y1
+        if height < 300:  # Small bottle
+            small_bottles += 1
+        elif height < 450:  # Medium bottle
+            medium_bottles += 1
+        else:  # Large bottle
+            large_bottles += 1
+
     qr_data = {
         "type": "green_earn_points",
         "points": points,
+        "bottle_counts": {
+            "small": small_bottles,
+            "medium": medium_bottles,
+            "large": large_bottles,
+        },
         "timestamp": int(time.time()),  # Unix timestamp
         "version": "1.0",
         "checksum": hashlib.sha256(
