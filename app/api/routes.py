@@ -15,7 +15,7 @@ picam2 = None
 net = None
 INPUT_WIDTH = 640
 INPUT_HEIGHT = 640
-CONFIDENCE_THRESHOLD = 0.70
+CONFIDENCE_THRESHOLD = 0.55
 NMS_THRESHOLD = 0.2
 
 
@@ -114,13 +114,23 @@ def process_image(image):
     boxes = []
     confidences = []
 
+    print("\n=== Debug: Tüm Tespitler ===")
     # Her bir tespit için
-    for detection in outputs[0]:
+    for i, detection in enumerate(outputs[0]):
         # Sınıf olasılıklarını al (5. elemandan sonrası)
         scores = detection[5:]
         # En yüksek olasılığa sahip sınıfı bul
         class_id = np.argmax(scores)
         confidence = scores[class_id]
+
+        # Debug için tüm yüksek olasılıklı tespitleri göster
+        if confidence > 0.3:  # Daha düşük bir eşik ile debug
+            print(f"Tespit {i}:")
+            print(f"  - Ham güven değeri: {confidence*100:.2f}%")
+            print(f"  - Eşik değeri: {CONFIDENCE_THRESHOLD*100:.2f}%")
+            print(
+                f"  - Kabul edildi mi: {'Evet' if confidence > CONFIDENCE_THRESHOLD else 'Hayır'}"
+            )
 
         # Güven eşiğini kontrol et
         if confidence > CONFIDENCE_THRESHOLD:
@@ -147,12 +157,16 @@ def process_image(image):
                 boxes.append([x1, y1, x2 - x1, y2 - y1])
                 confidences.append(float(confidence))
 
+    print("\n=== Debug: NMS Öncesi ===")
+    print(f"NMS öncesi tespit sayısı: {len(boxes)}")
+
     # Non-maximum suppression uygula
     detections = []
     if boxes:
         indices = cv2.dnn.NMSBoxes(
             boxes, confidences, CONFIDENCE_THRESHOLD, NMS_THRESHOLD
         )
+        print(f"NMS sonrası tespit sayısı: {len(indices)}")
 
         for i in indices:
             idx = i
@@ -168,7 +182,7 @@ def process_image(image):
             bottle_height = y2 - y1
             points = calculate_points(bottle_height)
 
-            print(f"Detection {detection_count}:")
+            print(f"\nDetection {detection_count}:")
             print(f"  - Confidence: {confidences[idx]*100:.2f}%")
             print(f"  - Coordinates: ({x1}, {y1}) to ({x2}, {y2})")
             print(f"  - Bottle height: {bottle_height} pixels")
@@ -184,7 +198,7 @@ def process_image(image):
             )
 
     total_points = sum(d["points"] for d in detections)
-    print(f"Total detections: {len(detections)}")
+    print(f"\nTotal detections: {len(detections)}")
     print(f"Total points: {total_points}")
     return detections
 
