@@ -117,11 +117,8 @@ def process_image(image):
     print("\n=== Debug: Tüm Tespitler ===")
     # Her bir tespit için
     for i, detection in enumerate(outputs[0]):
-        # Sınıf olasılıklarını al (5. elemandan sonrası)
-        scores = detection[5:]
-        # En yüksek olasılığa sahip sınıfı bul
-        class_id = np.argmax(scores)
-        confidence = scores[class_id]
+        # Confidence değerini doğrudan al (4. indeks)
+        confidence = float(detection[4])
 
         # Debug için tüm yüksek olasılıklı tespitleri göster
         if confidence > 0.3:  # Daha düşük bir eşik ile debug
@@ -153,9 +150,9 @@ def process_image(image):
             y2 = min(height, y2)
 
             # Geçerli bir kutu mu kontrol et
-            if x2 > x1 and y2 > y1:
+            if x2 > x1 and y2 > y1 and w > 0 and h > 0:
                 boxes.append([x1, y1, x2 - x1, y2 - y1])
-                confidences.append(float(confidence))
+                confidences.append(confidence)
 
     print("\n=== Debug: NMS Öncesi ===")
     print(f"NMS öncesi tespit sayısı: {len(boxes)}")
