@@ -1,0 +1,161 @@
+=== New Detection Request ===
+Input image shape: (480, 640, 3)
+Input image shape: 640x480
+Network output shape: (1, 5, 8400)
+
+=== Debug: Tüm Tespitler ===
+Model output shape: (1, 5, 8400)
+Number of detections: 5
+Debug - Detection 0:
+  - Raw confidence: 100.00%
+  - Raw coordinates: x=46.4581184387207, y=20.593515396118164, w=32.532623291015625, h=49.36656188964844
+Adding box: x1=19322, y1=-1963, width=20820, height=23695, conf=1.0000
+Debug - Detection 1:
+  - Raw confidence: 99.94%
+  - Raw coordinates: x=8.758678436279297, y=9.292780876159668, w=8.581896781921387, h=7.957862854003906
+Adding box: x1=2859, y1=2550, width=5492, height=3819, conf=0.9994
+Debug - Detection 2:
+  - Raw confidence: 100.00%
+  - Raw coordinates: x=95.51139068603516, y=43.0984992980957, w=66.80715942382812, h=102.53187561035156
+Adding box: x1=39748, y1=-3920, width=42756, height=49215, conf=1.0000
+Debug - Detection 3:
+  - Raw confidence: 100.00%
+  - Raw coordinates: x=18.206375122070312, y=18.5625057220459, w=17.05348014831543, h=16.233287811279297
+Adding box: x1=6194, y1=5014, width=10914, height=7791, conf=1.0000
+Debug - Detection 4:
+  - Raw confidence: 50.00%
+  - Raw coordinates: x=1.8908207493950613e-05, y=2.5115194148384035e-05, w=2.2031594198779203e-05, h=3.8892965676495805e-05
+Adding box: x1=0, y1=0, width=0, height=0, conf=0.5000
+
+=== Debug: NMS Öncesi ===
+NMS öncesi tespit sayısı: 5
+Box coordinates: [[19322, -1963, 20820, 23695], [2859, 2550, 5492, 3819], [39748, -3920, 42756, 49215], [6194, 5014, 10914, 7791], [0, 0, 0, 0]]
+NMS sonrası tespit sayısı: 5
+Indices after NMS: [0 2 3 1 4]
+Calculating points for height: 23695
+Bottle size: large, Points: 30
+
+Detection 1:
+  - Confidence: 100.00%
+  - Coordinates: (19322, -1963) to (40142, 21732)
+  - Bottle height: 23695 pixels
+  - Points awarded: 30
+Calculating points for height: 49215
+Bottle size: large, Points: 30
+
+Detection 2:
+  - Confidence: 100.00%
+  - Coordinates: (39748, -3920) to (82504, 45295)
+  - Bottle height: 49215 pixels
+  - Points awarded: 30
+Calculating points for height: 7791
+Bottle size: large, Points: 30
+
+Detection 3:
+  - Confidence: 100.00%
+  - Coordinates: (6194, 5014) to (17108, 12805)
+  - Bottle height: 7791 pixels
+  - Points awarded: 30
+Calculating points for height: 3819
+Bottle size: large, Points: 30
+
+Detection 4:
+  - Confidence: 99.94%
+  - Coordinates: (2859, 2550) to (8351, 6369)
+  - Bottle height: 3819 pixels
+  - Points awarded: 30
+Calculating points for height: 0
+Bottle size: small, Points: 10
+
+Detection 5:
+  - Confidence: 50.00%
+  - Coordinates: (0, 0) to (0, 0)
+  - Bottle height: 0 pixels
+  - Points awarded: 10
+
+Final detection count: 5
+Total points: 130
+Final total points: 130
+127.0.0.1 - - [23/Apr/2025 12:57:09] "POST /api/detect HTTP/1.1" 200 -
+
+
+
+=== New Detection Request ===
+Input image shape: (480, 640, 3)
+Input image shape: 640x480
+Network output shape: (1, 5, 8400)
+
+=== Debug: Tüm Tespitler ===
+Model output shape: (1, 5, 8400)
+Number of detections: 5
+Debug - Detection 0:
+  - Raw confidence: 100.00%
+  - Raw coordinates: x=45.428104400634766, y=19.811931610107422, w=31.522579193115234, h=49.03382110595703
+Adding box: x1=18986, y1=-2258, width=20174, height=23536, conf=1.0000
+Debug - Detection 1:
+  - Raw confidence: 99.92%
+  - Raw coordinates: x=8.717596054077148, y=9.640987396240234, w=9.074098587036133, h=8.150626182556152
+Adding box: x1=2675, y1=2671, width=5807, height=3912, conf=0.9992
+Debug - Detection 2:
+  - Raw confidence: 100.00%
+  - Raw coordinates: x=93.82747650146484, y=41.551597595214844, w=63.68866729736328, h=100.99398803710938
+Adding box: x1=39669, y1=-4293, width=40760, height=48477, conf=1.0000
+Debug - Detection 3:
+  - Raw confidence: 100.00%
+  - Raw coordinates: x=18.053302764892578, y=19.3287353515625, w=18.159194946289062, h=16.807199478149414
+Adding box: x1=5743, y1=5244, width=11621, height=8067, conf=1.0000
+Debug - Detection 4:
+  - Raw confidence: 50.00%
+  - Raw coordinates: x=1.592370608705096e-05, y=2.030224095506128e-05, w=2.084177867800463e-05, h=3.734072015504353e-05
+Adding box: x1=0, y1=0, width=0, height=0, conf=0.5000
+
+=== Debug: NMS Öncesi ===
+NMS öncesi tespit sayısı: 5
+Box coordinates: [[18986, -2258, 20174, 23536], [2675, 2671, 5807, 3912], [39669, -4293, 40760, 48477], [5743, 5244, 11621, 8067], [0, 0, 0, 0]]
+NMS sonrası tespit sayısı: 5
+Indices after NMS: [0 2 3 1 4]
+Calculating points for height: 23536
+Bottle size: large, Points: 30
+
+Detection 1:
+  - Confidence: 100.00%
+  - Coordinates: (18986, -2258) to (39160, 21278)
+  - Bottle height: 23536 pixels
+  - Points awarded: 30
+Calculating points for height: 48477
+Bottle size: large, Points: 30
+
+Detection 2:
+  - Confidence: 100.00%
+  - Coordinates: (39669, -4293) to (80429, 44184)
+  - Bottle height: 48477 pixels
+  - Points awarded: 30
+Calculating points for height: 8067
+Bottle size: large, Points: 30
+
+Detection 3:
+  - Confidence: 100.00%
+  - Coordinates: (5743, 5244) to (17364, 13311)
+  - Bottle height: 8067 pixels
+  - Points awarded: 30
+Calculating points for height: 3912
+Bottle size: large, Points: 30
+
+Detection 4:
+  - Confidence: 99.92%
+  - Coordinates: (2675, 2671) to (8482, 6583)
+  - Bottle height: 3912 pixels
+  - Points awarded: 30
+Calculating points for height: 0
+Bottle size: small, Points: 10
+
+Detection 5:
+  - Confidence: 50.00%
+  - Coordinates: (0, 0) to (0, 0)
+  - Bottle height: 0 pixels
+  - Points awarded: 10
+
+Final detection count: 5
+Total points: 130
+Final total points: 130
+127.0.0.1 - - [23/Apr/2025 12:57:45] "POST /api/detect HTTP/1.1" 200 -
