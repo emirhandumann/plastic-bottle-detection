@@ -113,94 +113,106 @@ def process_image(image):
     # Tüm tespitleri topla
     boxes = []
     confidences = []
+    class_ids = []
 
     print("\n=== Debug: Tüm Tespitler ===")
-    # Her bir tespit için
-    for i, detection in enumerate(outputs[0]):
-        # Sigmoid fonksiyonu ile normalize et
-        confidence = 1 / (1 + np.exp(-float(detection[4])))
 
-        # Debug için tüm yüksek olasılıklı tespitleri göster
-        if confidence > 0.3:  # Daha düşük bir eşik ile debug
-            print(f"Tespit {i}:")
-            print(f"  - Ham güven değeri: {confidence*100:.2f}%")
-            print(f"  - Eşik değeri: {CONFIDENCE_THRESHOLD*100:.2f}%")
+    # Çıktı boyutlarını incele ve debug
+    print(f"Model output shape: {outputs.shape}")
+    rows = outputs.shape[1]
+    print(f"Number of detections: {rows}")
+
+    # Her bir tespit için
+    for i in range(rows):
+        row = outputs[0][i]
+        confidence = float(row[4])  # Sigmoid uygulamadan önceki ham değer
+
+        # Sigmoid fonksiyonu ile normalize et
+        confidence = 1 / (1 + np.exp(-confidence))
+
+        # Debug için ham tespit verilerini yazdır
+        if confidence > 0.2:  # Daha düşük bir eşik ile tüm olası tespitleri göster
+            print(f"Debug - Detection {i}:")
+            print(f"  - Raw confidence: {confidence*100:.2f}%")
             print(
-                f"  - Kabul edildi mi: {'Evet' if confidence > CONFIDENCE_THRESHOLD else 'Hayır'}"
+                f"  - Raw coordinates: x={row[0]}, y={row[1]}, w={row[2]}, h={row[3]}"
             )
 
         # Güven eşiğini kontrol et
         if confidence > CONFIDENCE_THRESHOLD:
             # Normalize edilmiş koordinatları al
-            x = float(detection[0])
-            y = float(detection[1])
-            w = float(detection[2])
-            h = float(detection[3])
+            x_center = float(row[0])
+            y_center = float(row[1])
+            w = float(row[2])
+            h = float(row[3])
 
             # Koordinatları orijinal görüntü boyutuna ölçekle
-            x1 = int((x - w / 2) * width)
-            y1 = int((y - h / 2) * height)
-            x2 = int((x + w / 2) * width)
-            y2 = int((y + h / 2) * height)
+            x1 = int((x_center - w / 2) * width)
+            y1 = int((y_center - h / 2) * height)
+            box_width = int(w * width)
+            box_height = int(h * height)
 
-            # Görüntü sınırlarını kontrol et
-            x1 = max(0, x1)
-            y1 = max(0, y1)
-            x2 = min(width, x2)
-            y2 = min(height, y2)
+            # Kutu koordinatlarını ekle
+            boxes.append([x1, y1, box_width, box_height])
+            confidences.append(confidence)
+            class_ids.append(0)  # Tek sınıf: şişe
 
-            # Geçerli bir kutu mu kontrol et
-            if x2 > x1 and y2 > y1 and w > 0 and h > 0:
-                boxes.append([x1, y1, x2 - x1, y2 - y1])
-                confidences.append(float(confidence))
+            print(
+                f"Adding box: x1={x1}, y1={y1}, width={box_width}, height={box_height}, conf={confidence:.4f}"
+            )
 
-    print("\n=== Debug: NMS Öncesi ===")
+    print(f"\n=== Debug: NMS Öncesi ===")
     print(f"NMS öncesi tespit sayısı: {len(boxes)}")
+    print(f"Box coordinates: {boxes}")
 
     # Non-maximum suppression uygula
     detections = []
     if len(boxes) > 0:
-        boxes = np.array(boxes)
-        confidences = np.array(confidences)
-        indices = cv2.dnn.NMSBoxes(
-            boxes.tolist(), confidences.tolist(), CONFIDENCE_THRESHOLD, NMS_THRESHOLD
-        ).flatten()
-
-        print(f"NMS sonrası tespit sayısı: {len(indices)}")
-
-        # Debug: indeksleri göster
-        print(f"Algılanan indeksler: {indices}")
-
-        for idx in indices:
-            box = boxes[idx]
-            x1 = int(box[0])
-            y1 = int(box[1])
-            w = int(box[2])
-            h = int(box[3])
-            x2 = x1 + w
-            y2 = y1 + h
-
-            detection_count += 1
-            bottle_height = h  # y2 - y1 yerine doğrudan h kullanın
-            points = calculate_points(bottle_height)
-
-            print(f"\nDetection {detection_count}:")
-            print(f"  - Confidence: {confidences[idx]*100:.2f}%")
-            print(f"  - Coordinates: ({x1}, {y1}) to ({x2}, {y2})")
-            print(f"  - Bottle height: {bottle_height} pixels")
-            print(f"  - Points awarded: {points}")
-
-            detections.append(
-                {
-                    "bbox": [x1, y1, x2, y2],
-                    "confidence": float(confidences[idx]),
-                    "class": 0,  # Sadece şişe sınıfı var
-                    "points": points,
-                }
+        # NMS uygulamaya çalış
+        try:
+            indices = cv2.dnn.NMSBoxes(
+                boxes, confidences, CONFIDENCE_THRESHOLD, NMS_THRESHOLD
             )
 
+            # NumPy dizisi veya liste olabileceğinden kontrol et
+            if isinstance(indices, np.ndarray):
+                indices = indices.flatten()
+
+            print(f"NMS sonrası tespit sayısı: {len(indices)}")
+            print(f"Indices after NMS: {indices}")
+
+            # Her bir tespit için sonuç oluştur
+            for i in indices:
+                box = boxes[i]
+                x1, y1 = box[0], box[1]
+                w, h = box[2], box[3]
+                x2, y2 = x1 + w, y1 + h
+
+                # Şişe yüksekliğini hesapla
+                bottle_height = h
+                points = calculate_points(bottle_height)
+
+                print(f"\nDetection {detection_count + 1}:")
+                print(f"  - Confidence: {confidences[i]*100:.2f}%")
+                print(f"  - Coordinates: ({x1}, {y1}) to ({x2}, {y2})")
+                print(f"  - Bottle height: {bottle_height} pixels")
+                print(f"  - Points awarded: {points}")
+
+                detections.append(
+                    {
+                        "bbox": [x1, y1, x2, y2],
+                        "confidence": float(confidences[i]),
+                        "class": class_ids[i],
+                        "points": points,
+                    }
+                )
+                detection_count += 1
+
+        except Exception as e:
+            print(f"Error during NMS: {str(e)}")
+
     total_points = sum(d["points"] for d in detections)
-    print(f"\nTotal detections: {len(detections)}")
+    print(f"\nFinal detection count: {len(detections)}")
     print(f"Total points: {total_points}")
     return detections
 
@@ -283,16 +295,18 @@ def detect():
 def calculate_points(height):
     """Şişe boyutuna göre puan hesapla"""
     print(f"Calculating points for height: {height}")
-    # Daha gerçekçi piksel yükseklik değerleri kullanın
-    if height < 100:  # 5000 yerine 100 kullanın
-        points = 10  # Küçük şişe
+
+    # Gerçek görüntüdeki şişe boyutlarına göre ayarlanmış değerler
+    if height < 150:  # Küçük şişe
+        points = 10
         size = "small"
-    elif height < 200:  # 10000 yerine 200 kullanın
-        points = 20  # Orta şişe
+    elif height < 300:  # Orta şişe
+        points = 20
         size = "medium"
-    else:
-        points = 30  # Büyük şişe
+    else:  # Büyük şişe
+        points = 30
         size = "large"
+
     print(f"Bottle size: {size}, Points: {points}")
     return points
 
