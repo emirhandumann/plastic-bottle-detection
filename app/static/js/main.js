@@ -9,14 +9,14 @@ document.addEventListener('alpine:init', () => {
             try {
                 this.processing = true;
                 
-                // Kamera görüntüsünü al
+                // Capture image from camera
                 const response = await fetch('/api/capture');
                 const data = await response.json();
                 
                 if (data.success) {
                     this.imagePreview = `data:image/jpeg;base64,${data.image}`;
                     
-                    // Görüntüyü işle ve şişeleri tespit et
+                    // Process image and detect bottles
                     const detectResponse = await fetch('/api/detect', {
                         method: 'POST',
                         headers: {
