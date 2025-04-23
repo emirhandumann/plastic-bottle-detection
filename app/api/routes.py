@@ -168,6 +168,9 @@ def process_image(image):
 
         print(f"NMS sonrası tespit sayısı: {len(indices)}")
 
+        # Debug: indeksleri göster
+        print(f"Algılanan indeksler: {indices}")
+
         for idx in indices:
             box = boxes[idx]
             x1 = int(box[0])
@@ -178,7 +181,7 @@ def process_image(image):
             y2 = y1 + h
 
             detection_count += 1
-            bottle_height = y2 - y1
+            bottle_height = h  # y2 - y1 yerine doğrudan h kullanın
             points = calculate_points(bottle_height)
 
             print(f"\nDetection {detection_count}:")
@@ -280,10 +283,11 @@ def detect():
 def calculate_points(height):
     """Şişe boyutuna göre puan hesapla"""
     print(f"Calculating points for height: {height}")
-    if height < 5000:
+    # Daha gerçekçi piksel yükseklik değerleri kullanın
+    if height < 100:  # 5000 yerine 100 kullanın
         points = 10  # Küçük şişe
         size = "small"
-    elif height < 10000:
+    elif height < 200:  # 10000 yerine 200 kullanın
         points = 20  # Orta şişe
         size = "medium"
     else:
