@@ -40,25 +40,40 @@ def initialize_camera():
         time.sleep(3)  # Longer wait after cleanup
 
         picam2 = Picamera2()
-        # Yüksek çözünürlüklü kamera yapılandırması
-        preview_config = picam2.create_preview_configuration(
-            main={"size": (1920, 1080), "format": "RGB888"},
-            controls={"Zoom": 0.8},  # 0.8 zoom değeri ile uzaklaştırma
-        )
-        picam2.configure(preview_config)
 
+        # Kamera yapılandırmasını adım adım yap
         try:
+            # Önce basit bir yapılandırma ile başla
+            preview_config = picam2.create_preview_configuration(
+                main={"size": (640, 480), "format": "RGB888"}
+            )
+            picam2.configure(preview_config)
+
+            # Kamerayı başlat
             picam2.start(show_preview=False)
-            time.sleep(5)  # Longer wait after start
-            print("Camera initialized successfully")
+            time.sleep(2)
+
+            # Eğer başarılı olduysa, yüksek çözünürlüklü yapılandırmaya geç
+            picam2.stop()
+            time.sleep(1)
+
+            preview_config = picam2.create_preview_configuration(
+                main={"size": (1920, 1080), "format": "RGB888"}, controls={"Zoom": 0.8}
+            )
+            picam2.configure(preview_config)
+            picam2.start(show_preview=False)
+            time.sleep(2)
+
+            print("Kamera başarıyla başlatıldı")
             return True
-        except Exception as start_error:
-            print(f"Camera start error: {str(start_error)}")
+
+        except Exception as config_error:
+            print(f"Kamera yapılandırma hatası: {str(config_error)}")
             cleanup_camera()
             return False
 
     except Exception as e:
-        print(f"Error initializing camera: {str(e)}")
+        print(f"Kamera başlatma hatası: {str(e)}")
         picam2 = None
         return False
 
@@ -304,12 +319,16 @@ load_model()
 def capture():
     global picam2
 
-    if picam2 is None or not initialize_camera():
-        return jsonify({"success": False, "error": "Camera initialization failed"}), 500
+    if picam2 is None:
+        print("Kamera başlatılıyor...")
+        if not initialize_camera():
+            return jsonify({"success": False, "error": "Kamera başlatılamadı"}), 500
 
     try:
+        print("Görüntü yakalanıyor...")
         # Görüntü yakala
         image = picam2.capture_array()
+        print(f"Yakalanan görüntü boyutu: {image.shape}")
 
         # PIL Image'e çevir (zaten RGB formatında)
         pil_image = Image.fromarray(image)
@@ -322,9 +341,12 @@ def capture():
         return jsonify({"success": True, "image": img_str})
 
     except Exception as e:
-        print(f"Capture error: {str(e)}")
+        print(f"Görüntü yakalama hatası: {str(e)}")
         cleanup_camera()  # Hata durumunda kamerayı temizle
-        return jsonify({"success": False, "error": str(e)}), 400
+        return (
+            jsonify({"success": False, "error": f"Görüntü yakalanamadı: {str(e)}"}),
+            400,
+        )
 
 
 @bp.route("/detect", methods=["POST"])
