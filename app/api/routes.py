@@ -43,19 +43,6 @@ def initialize_camera():
 
         # Kamera yapılandırmasını adım adım yap
         try:
-            # Önce basit bir yapılandırma ile başla
-            preview_config = picam2.create_preview_configuration(
-                main={"size": (640, 480), "format": "RGB888"}
-            )
-            picam2.configure(preview_config)
-
-            # Kamerayı başlat
-            picam2.start(show_preview=False)
-            time.sleep(2)
-
-            # Eğer başarılı olduysa, yüksek çözünürlüklü yapılandırmaya geç
-            picam2.stop()
-            time.sleep(1)
 
             preview_config = picam2.create_preview_configuration(
                 main={"size": (1920, 1080), "format": "RGB888"}
