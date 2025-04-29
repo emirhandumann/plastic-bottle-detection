@@ -58,7 +58,7 @@ def initialize_camera():
             time.sleep(1)
 
             preview_config = picam2.create_preview_configuration(
-                main={"size": (1920, 1080), "format": "RGB888"}, controls={"Zoom": 0.8}
+                main={"size": (1920, 1080), "format": "RGB888"}
             )
             picam2.configure(preview_config)
             picam2.start(show_preview=False)
