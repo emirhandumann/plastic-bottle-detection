@@ -40,27 +40,24 @@ def initialize_camera():
         time.sleep(3)  # Longer wait after cleanup
 
         picam2 = Picamera2()
+        # Simplified camera configuration
+        preview_config = picam2.create_preview_configuration(
+            main={"size": (640, 480), "format": "RGB888"}
+        )
+        picam2.configure(preview_config)
 
-        # Kamera yapılandırmasını adım adım yap
         try:
-
-            preview_config = picam2.create_preview_configuration(
-                main={"size": (1920, 1080), "format": "RGB888"}
-            )
-            picam2.configure(preview_config)
             picam2.start(show_preview=False)
-            time.sleep(2)
-
-            print("Kamera başarıyla başlatıldı")
+            time.sleep(5)  # Longer wait after start
+            print("Camera initialized successfully")
             return True
-
-        except Exception as config_error:
-            print(f"Kamera yapılandırma hatası: {str(config_error)}")
+        except Exception as start_error:
+            print(f"Camera start error: {str(start_error)}")
             cleanup_camera()
             return False
 
     except Exception as e:
-        print(f"Kamera başlatma hatası: {str(e)}")
+        print(f"Error initializing camera: {str(e)}")
         picam2 = None
         return False
 
@@ -98,23 +95,12 @@ def load_model():
 
 
 def process_image(image):
-    # Görüntüyü YOLO için yeniden boyutlandır
     height, width = image.shape[:2]
-    print(f"Orijinal görüntü boyutu: {width}x{height}")
-
-    # Görüntüyü YOLO için yeniden boyutlandır (aspect ratio korunarak)
-    scale = min(INPUT_WIDTH / width, INPUT_HEIGHT / height)
-    new_width = int(width * scale)
-    new_height = int(height * scale)
-
-    resized = cv2.resize(image, (new_width, new_height))
-
-    # Yeni boyutları yazdır
-    print(f"Yeniden boyutlandırılmış görüntü: {new_width}x{new_height}")
+    print(f"Input image shape: {width}x{height}")
 
     # Prepare the image
     blob = cv2.dnn.blobFromImage(
-        resized, 1 / 255.0, (INPUT_WIDTH, INPUT_HEIGHT), swapRB=True, crop=False
+        image, 1 / 255.0, (INPUT_WIDTH, INPUT_HEIGHT), swapRB=True, crop=False
     )
     net.setInput(blob)
 
@@ -146,16 +132,16 @@ def process_image(image):
                 x, y, w, h = outputs[0, 0:4, i]
 
                 # Convert to pixel coordinates
-                x1 = int((x - w / 2) * new_width)
-                y1 = int((y - h / 2) * new_height)
-                x2 = int((x + w / 2) * new_width)
-                y2 = int((y + h / 2) * new_height)
+                x1 = int((x - w / 2) * width)
+                y1 = int((y - h / 2) * height)
+                x2 = int((x + w / 2) * width)
+                y2 = int((y + h / 2) * height)
 
                 # Ensure coordinates are within bounds
-                x1 = max(0, min(x1, new_width - 1))
-                y1 = max(0, min(y1, new_height - 1))
-                x2 = max(0, min(x2, new_width - 1))
-                y2 = max(0, min(y2, new_height - 1))
+                x1 = max(0, min(x1, width - 1))
+                y1 = max(0, min(y1, height - 1))
+                x2 = max(0, min(x2, width - 1))
+                y2 = max(0, min(y2, height - 1))
 
                 box_width = x2 - x1
                 box_height = y2 - y1
@@ -204,22 +190,22 @@ def process_image(image):
                 # Validate coordinates (sometimes models output raw values, not normalized)
                 if x > 1.0 or y > 1.0:  # Raw pixel values detected
                     # Convert to normalized coordinates
-                    x = x / new_width
-                    y = y / new_height
-                    w = w / new_width
-                    h = h / new_height
+                    x = x / width
+                    y = y / height
+                    w = w / width
+                    h = h / height
 
                 # Scale to image dimensions
-                x1 = int((x - w / 2) * new_width)
-                y1 = int((y - h / 2) * new_height)
-                box_width = int(w * new_width)
-                box_height = int(h * new_height)
+                x1 = int((x - w / 2) * width)
+                y1 = int((y - h / 2) * height)
+                box_width = int(w * width)
+                box_height = int(h * height)
 
                 # Ensure coordinates are within image bounds
-                x1 = max(0, min(x1, new_width - 1))
-                y1 = max(0, min(y1, new_height - 1))
-                box_width = min(box_width, new_width - x1)
-                box_height = min(box_height, new_height - y1)
+                x1 = max(0, min(x1, width - 1))
+                y1 = max(0, min(y1, height - 1))
+                box_width = min(box_width, width - x1)
+                box_height = min(box_height, height - y1)
 
                 # Skip tiny boxes
                 if box_width <= 5 or box_height <= 5:
@@ -306,16 +292,12 @@ load_model()
 def capture():
     global picam2
 
-    if picam2 is None:
-        print("Kamera başlatılıyor...")
-        if not initialize_camera():
-            return jsonify({"success": False, "error": "Kamera başlatılamadı"}), 500
+    if picam2 is None or not initialize_camera():
+        return jsonify({"success": False, "error": "Camera initialization failed"}), 500
 
     try:
-        print("Görüntü yakalanıyor...")
         # Görüntü yakala
         image = picam2.capture_array()
-        print(f"Yakalanan görüntü boyutu: {image.shape}")
 
         # PIL Image'e çevir (zaten RGB formatında)
         pil_image = Image.fromarray(image)
@@ -328,12 +310,9 @@ def capture():
         return jsonify({"success": True, "image": img_str})
 
     except Exception as e:
-        print(f"Görüntü yakalama hatası: {str(e)}")
+        print(f"Capture error: {str(e)}")
         cleanup_camera()  # Hata durumunda kamerayı temizle
-        return (
-            jsonify({"success": False, "error": f"Görüntü yakalanamadı: {str(e)}"}),
-            400,
-        )
+        return jsonify({"success": False, "error": str(e)}), 400
 
 
 @bp.route("/detect", methods=["POST"])
