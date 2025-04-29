@@ -40,9 +40,10 @@ def initialize_camera():
         time.sleep(3)  # Longer wait after cleanup
 
         picam2 = Picamera2()
-        # Simplified camera configuration
+        # Yüksek çözünürlüklü kamera yapılandırması
         preview_config = picam2.create_preview_configuration(
-            main={"size": (640, 480), "format": "RGB888"}
+            main={"size": (1920, 1080), "format": "RGB888"},
+            controls={"Zoom": 0.8},  # 0.8 zoom değeri ile uzaklaştırma
         )
         picam2.configure(preview_config)
 
@@ -95,12 +96,23 @@ def load_model():
 
 
 def process_image(image):
+    # Görüntüyü YOLO için yeniden boyutlandır
     height, width = image.shape[:2]
-    print(f"Input image shape: {width}x{height}")
+    print(f"Orijinal görüntü boyutu: {width}x{height}")
+
+    # Görüntüyü YOLO için yeniden boyutlandır (aspect ratio korunarak)
+    scale = min(INPUT_WIDTH / width, INPUT_HEIGHT / height)
+    new_width = int(width * scale)
+    new_height = int(height * scale)
+
+    resized = cv2.resize(image, (new_width, new_height))
+
+    # Yeni boyutları yazdır
+    print(f"Yeniden boyutlandırılmış görüntü: {new_width}x{new_height}")
 
     # Prepare the image
     blob = cv2.dnn.blobFromImage(
-        image, 1 / 255.0, (INPUT_WIDTH, INPUT_HEIGHT), swapRB=True, crop=False
+        resized, 1 / 255.0, (INPUT_WIDTH, INPUT_HEIGHT), swapRB=True, crop=False
     )
     net.setInput(blob)
 
@@ -132,16 +144,16 @@ def process_image(image):
                 x, y, w, h = outputs[0, 0:4, i]
 
                 # Convert to pixel coordinates
-                x1 = int((x - w / 2) * width)
-                y1 = int((y - h / 2) * height)
-                x2 = int((x + w / 2) * width)
-                y2 = int((y + h / 2) * height)
+                x1 = int((x - w / 2) * new_width)
+                y1 = int((y - h / 2) * new_height)
+                x2 = int((x + w / 2) * new_width)
+                y2 = int((y + h / 2) * new_height)
 
                 # Ensure coordinates are within bounds
-                x1 = max(0, min(x1, width - 1))
-                y1 = max(0, min(y1, height - 1))
-                x2 = max(0, min(x2, width - 1))
-                y2 = max(0, min(y2, height - 1))
+                x1 = max(0, min(x1, new_width - 1))
+                y1 = max(0, min(y1, new_height - 1))
+                x2 = max(0, min(x2, new_width - 1))
+                y2 = max(0, min(y2, new_height - 1))
 
                 box_width = x2 - x1
                 box_height = y2 - y1
@@ -190,22 +202,22 @@ def process_image(image):
                 # Validate coordinates (sometimes models output raw values, not normalized)
                 if x > 1.0 or y > 1.0:  # Raw pixel values detected
                     # Convert to normalized coordinates
-                    x = x / width
-                    y = y / height
-                    w = w / width
-                    h = h / height
+                    x = x / new_width
+                    y = y / new_height
+                    w = w / new_width
+                    h = h / new_height
 
                 # Scale to image dimensions
-                x1 = int((x - w / 2) * width)
-                y1 = int((y - h / 2) * height)
-                box_width = int(w * width)
-                box_height = int(h * height)
+                x1 = int((x - w / 2) * new_width)
+                y1 = int((y - h / 2) * new_height)
+                box_width = int(w * new_width)
+                box_height = int(h * new_height)
 
                 # Ensure coordinates are within image bounds
-                x1 = max(0, min(x1, width - 1))
-                y1 = max(0, min(y1, height - 1))
-                box_width = min(box_width, width - x1)
-                box_height = min(box_height, height - y1)
+                x1 = max(0, min(x1, new_width - 1))
+                y1 = max(0, min(y1, new_height - 1))
+                box_width = min(box_width, new_width - x1)
+                box_height = min(box_height, new_height - y1)
 
                 # Skip tiny boxes
                 if box_width <= 5 or box_height <= 5:
