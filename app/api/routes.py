@@ -37,18 +37,18 @@ def initialize_camera():
     global picam2
     try:
         cleanup_camera()
-        time.sleep(3)  # Longer wait after cleanup
+        time.sleep(2)  # Longer wait after cleanup
 
         picam2 = Picamera2()
         # Simplified camera configuration
         preview_config = picam2.create_preview_configuration(
-            main={"size": (640, 480), "format": "RGB888"}
+            main={"size": (1920, 1080), "format": "RGB888"}
         )
         picam2.configure(preview_config)
 
         try:
             picam2.start(show_preview=False)
-            time.sleep(5)  # Longer wait after start
+            time.sleep(3)  # Longer wait after start
             print("Camera initialized successfully")
             return True
         except Exception as start_error:
