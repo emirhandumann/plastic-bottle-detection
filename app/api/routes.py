@@ -68,7 +68,7 @@ def load_model():
         weights_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
             "plastic_bottle_detection",
-            "exp1",
+            "exp2",
             "weights",
             "best.onnx",
         )
