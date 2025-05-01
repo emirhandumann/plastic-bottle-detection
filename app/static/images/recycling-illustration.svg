@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="400" viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Geri dönüşüm sembolü -->
+    <path d="M200 50c-82.843 0-150 67.157-150 150s67.157 150 150 150 150-67.157 150-150S282.843 50 200 50zm0 270c-66.274 0-120-53.726-120-120s53.726-120 120-120 120 53.726 120 120-53.726 120-120 120z" fill="#E5E7EB"/>
+    
+    <!-- Plastik şişe -->
+    <path d="M180 140h40v120h-40z" fill="#10B981"/>
+    <path d="M160 260h80v20h-80z" fill="#10B981"/>
+    <path d="M170 120h60v20h-60z" fill="#10B981"/>
+    <path d="M190 100h20v20h-20z" fill="#10B981"/>
+    
+    <!-- Geri dönüşüm okları -->
+    <path d="M200 160l-30 40h60z" fill="#10B981"/>
+    <path d="M170 220l30-40-30-40" stroke="#10B981" stroke-width="8" fill="none"/>
+    <path d="M230 220l-30-40 30-40" stroke="#10B981" stroke-width="8" fill="none"/>
+</svg> 

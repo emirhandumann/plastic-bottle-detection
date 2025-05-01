@@ -1,64 +1,74 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto" x-data="bottleDetector">
-    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div class="flex items-center space-x-2 mb-6">
-            <i class="fas fa-camera text-green-600 text-2xl"></i>
-            <h2 class="text-2xl font-bold text-gray-800">Green Earn</h2>
+<div class="max-w-6xl mx-auto" x-data="bottleDetector">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <!-- Sol Taraf - Başlık ve Kamera -->
+        <div>
+            <div class="mb-8">
+                <h1 class="text-4xl font-bold text-gray-800 mb-4">Smart Plastic Bottle Detection with GreenEarn</h1>
+                <p class="text-gray-600 text-lg">Help save the environment by detecting and recycling plastic bottles. Our AI-powered system makes it easy and efficient.</p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div class="relative rounded-lg overflow-hidden bg-gray-100 mb-6">
+                    <template x-if="imagePreview">
+                        <img :src="imagePreview" class="w-full h-auto object-cover" alt="Camera preview">
+                    </template>
+                    <template x-if="!imagePreview">
+                        <div class="flex items-center justify-center h-64 text-gray-400">
+                            <div class="text-center">
+                                <i class="fas fa-camera text-4xl mb-2"></i>
+                                <p>No image captured yet</p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <button 
+                    class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 ease-in-out transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                    x-on:click="captureImage()" 
+                    x-bind:disabled="processing">
+                    <i class="fas" :class="processing ? 'fa-spinner fa-spin' : 'fa-camera'"></i>
+                    <span x-text="processing ? 'Processing...' : 'Start Camera'"></span>
+                </button>
+            </div>
         </div>
-        
-        <div class="relative rounded-lg overflow-hidden bg-black mb-6">
-            <template x-if="imagePreview">
-                <img :src="imagePreview" class="w-full h-auto object-cover" alt="Camera image">
-            </template>
-            <template x-if="!imagePreview">
-                <div class="flex items-center justify-center h-64 text-gray-400">
-                    <div class="text-center">
-                        <i class="fas fa-camera text-4xl mb-2"></i>
-                        <p>No image!</p>
+
+        <!-- Sağ Taraf - Sonuçlar -->
+        <div>
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Detection Results</h2>
+                
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <h3 class="text-sm text-gray-600 mb-2">Small Bottle</h3>
+                        <p class="text-3xl font-bold text-green-600" x-text="smallBottles || 0">1</p>
+                    </div>
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <h3 class="text-sm text-gray-600 mb-2">Medium Bottle</h3>
+                        <p class="text-3xl font-bold text-green-600" x-text="mediumBottles || 0">0</p>
+                    </div>
+                    <div class="text-center p-4 bg-green-50 rounded-lg">
+                        <h3 class="text-sm text-gray-600 mb-2">Large Bottle</h3>
+                        <p class="text-3xl font-bold text-green-600" x-text="largeBottles || 0">3</p>
                     </div>
                 </div>
-            </template>
-        </div>
 
-        <button 
-            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 ease-in-out transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-            x-on:click="captureImage()" 
-            x-bind:disabled="processing">
-            <i class="fas" :class="processing ? 'fa-spinner fa-spin' : 'fa-camera'"></i>
-            <span x-text="processing ? 'Processing...' : 'Detect Bottle'"></span>
-        </button>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Puan Kartı -->
-        <div x-show="totalPoints > 0" 
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform -translate-y-4"
-             x-transition:enter-end="opacity-100 transform translate-y-0"
-             class="bg-white rounded-xl shadow-lg p-6">
-            <div class="flex items-center space-x-2 mb-4">
-                <i class="fas fa-star text-yellow-500 text-xl"></i>
-                <h3 class="text-xl font-semibold text-gray-800">Total Points</h3>
+                <div class="text-center mb-6">
+                    <p class="text-gray-600 mb-2">Scan QR Code to get your points</p>
+                    <template x-if="qrCode">
+                        <img :src="'data:image/png;base64,' + qrCode" 
+                             alt="QR Code" 
+                             class="mx-auto max-w-[200px] rounded-lg shadow">
+                    </template>
+                </div>
             </div>
-            <div class="text-4xl font-bold text-green-600" x-text="totalPoints"></div>
-        </div>
 
-        <!-- QR Kod Kartı -->
-        <div x-show="qrCode"
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="opacity-0 transform translate-y-4"
-             x-transition:enter-end="opacity-100 transform translate-y-0"
-             class="bg-white rounded-xl shadow-lg p-6">
-            <div class="flex items-center space-x-2 mb-4">
-                <i class="fas fa-qrcode text-gray-700 text-xl"></i>
-                <h3 class="text-xl font-semibold text-gray-800">QR Code</h3>
-            </div>
-            <div class="flex justify-center">
-                <img :src="'data:image/png;base64,' + qrCode" 
-                     alt="QR Code" 
-                     class="max-w-[200px] rounded-lg shadow">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <img src="{{ url_for('static', filename='images/recycling-illustration.svg') }}" 
+                     alt="Recycling Illustration" 
+                     class="w-full h-auto">
             </div>
         </div>
     </div>
