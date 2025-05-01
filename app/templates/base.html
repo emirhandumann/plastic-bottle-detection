@@ -79,8 +79,8 @@
                     <span>GreenEarn</span>
                 </a>
                 <div class="flex items-center space-x-8">
-                    <a href="{{ url_for('index') }}" class="nav-link">About</a>
-                    <a href="{{ url_for('index') }}" class="nav-link">Contact</a>
+                    <a href="{{ url_for('about') }}" class="nav-link">About</a>
+                    <a href="{{ url_for('contact') }}" class="nav-link">Contact</a>
                     <a href="#" class="btn-primary text-white px-6 py-2.5 rounded-lg font-medium">Get Started</a>
                 </div>
             </div>
@@ -104,9 +104,9 @@
                 <div>
                     <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
                     <ul class="space-y-2">
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">Get Started</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">About</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white transition">Contact</a></li>
+                        <li><a href="/" class="text-gray-400 hover:text-white transition">Get Started</a></li>
+                        <li><a href="{{ url_for('about') }}" class="text-gray-400 hover:text-white transition">About</a></li>
+                        <li><a href="{{ url_for('contact') }}" class="text-gray-400 hover:text-white transition">Contact</a></li>
                     </ul>
                 </div>
                 <div>
