@@ -4,9 +4,22 @@ import { DetectionResults } from "../components/DetectionResults";
 import { QRCodeDisplay } from "../components/QRCodeDisplay";
 import { Header } from "../components/Header";
 
+interface Detection {
+  confidence: number;
+  points: number;
+  box: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
 export default function Home() {
-  const [detectionResults, setDetectionResults] = useState(null);
-  const [qrCodeData, setQrCodeData] = useState(null);
+  const [detectionResults, setDetectionResults] = useState<Detection[] | null>(
+    null
+  );
+  const [qrCodeData, setQrCodeData] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-gray-50">
