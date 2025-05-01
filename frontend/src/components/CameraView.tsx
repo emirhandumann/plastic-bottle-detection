@@ -2,20 +2,9 @@ import { useState, useCallback, useRef } from "react";
 import Webcam from "react-webcam";
 import { detectBottles } from "../services/api";
 
-interface Detection {
-  confidence: number;
-  points: number;
-  box: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-}
-
 interface CameraViewProps {
-  onDetection: (detections: Detection[]) => void;
-  onQRCodeGenerated: (qrData: string) => void;
+  onDetection: (detections: any) => void;
+  onQRCodeGenerated: (qrData: any) => void;
 }
 
 export const CameraView = ({

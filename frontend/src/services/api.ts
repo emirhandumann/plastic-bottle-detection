@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api';
+// Raspberry Pi'nin IP adresi
+const API_URL = 'http://172.20.10.3:5000/api';
 
 export const captureImage = async () => {
   try {
