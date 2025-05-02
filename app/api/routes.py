@@ -335,6 +335,10 @@ def detect():
         # Process image and get detections
         detections = process_image(image_np)
 
+        # Visualize detections
+        if detections and len(detections) > 0:
+            visualize_detections(image_np, detections, save_path="debug_detection.jpg")
+
         # Şişe sayılarını hesapla
         bottle_counts = {"small": 0, "medium": 0, "large": 0}
 
