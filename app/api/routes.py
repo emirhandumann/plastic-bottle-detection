@@ -15,8 +15,8 @@ from picamera2 import Picamera2
 # Global değişkenler
 picam2 = None
 net = None
-INPUT_WIDTH = 640
-INPUT_HEIGHT = 640
+INPUT_WIDTH = 960
+INPUT_HEIGHT = 960
 CONFIDENCE_THRESHOLD = 0.30
 NMS_THRESHOLD = 0.4
 
