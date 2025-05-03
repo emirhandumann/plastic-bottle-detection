@@ -27,21 +27,20 @@ camera_lock = threading.Lock()
 
 def cleanup_camera():
     global picam2
-    with camera_lock:
-        print("[DEBUG] cleanup_camera: başlıyor")
-        try:
-            if picam2 is not None:
-                print("[DEBUG] cleanup_camera: picam2.stop() çağrılıyor")
-                picam2.stop()
-                print("[DEBUG] cleanup_camera: picam2.close() çağrılıyor")
-                picam2.close()
-                print("[DEBUG] cleanup_camera: picam2 = None atanıyor")
-                picam2 = None
-                print("[DEBUG] cleanup_camera: time.sleep(2) çağrılıyor")
-                time.sleep(2)
-        except Exception as e:
-            print(f"[DEBUG] cleanup_camera: hata: {str(e)}")
-        print("[DEBUG] cleanup_camera: bitti")
+    print("[DEBUG] cleanup_camera: başlıyor")
+    try:
+        if picam2 is not None:
+            print("[DEBUG] cleanup_camera: picam2.stop() çağrılıyor")
+            picam2.stop()
+            print("[DEBUG] cleanup_camera: picam2.close() çağrılıyor")
+            picam2.close()
+            print("[DEBUG] cleanup_camera: picam2 = None atanıyor")
+            picam2 = None
+            print("[DEBUG] cleanup_camera: time.sleep(2) çağrılıyor")
+            time.sleep(2)
+    except Exception as e:
+        print(f"[DEBUG] cleanup_camera: hata: {str(e)}")
+    print("[DEBUG] cleanup_camera: bitti")
 
 
 def initialize_camera():
