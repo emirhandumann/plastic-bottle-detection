@@ -11,10 +11,6 @@ def create_app():
 
     app.register_blueprint(api_bp, url_prefix="/api")
 
-    from app.realtime import bp as realtime_bp
-
-    app.register_blueprint(realtime_bp, url_prefix="/realtime")
-
     # Ana sayfa rotaları
     @app.route("/")
     def index():

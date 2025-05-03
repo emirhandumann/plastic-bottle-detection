@@ -7,13 +7,24 @@
         <div>
             <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-6">Smart Plastic Bottle Detection with GreenEarn</h1>
             <p class="text-xl text-gray-600 mb-8">Help save the environment by detecting and recycling plastic bottles. Our AI-powered system makes it easy and efficient.</p>
-            <button 
-                class="btn-primary text-white px-8 py-3 rounded-lg font-medium text-lg shadow-lg hover:shadow-xl"
-                x-on:click="captureImage()" 
-                x-bind:disabled="processing">
-                <i class="fas" :class="processing ? 'fa-spinner fa-spin' : 'fa-camera'"></i>
-                <span x-text="processing ? 'Processing...' : 'Start Detection'" class="ml-2"></span>
-            </button>
+            <div class="flex space-x-4">
+                <button 
+                    class="btn-primary text-white px-8 py-3 rounded-lg font-medium text-lg shadow-lg hover:shadow-xl transition"
+                    x-on:click="startRealTimeDetection()" 
+                    x-bind:disabled="processing || detectionActive"
+                    x-show="!detectionActive">
+                    <i class="fas fa-play-circle"></i>
+                    <span class="ml-2">Start Real-time Detection</span>
+                </button>
+                <button 
+                    class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-medium text-lg shadow-lg hover:shadow-xl transition"
+                    x-on:click="stopDetection()" 
+                    x-bind:disabled="processing"
+                    x-show="detectionActive">
+                    <i class="fas" :class="processing ? 'fa-spinner fa-spin' : 'fa-stop-circle'"></i>
+                    <span class="ml-2">Stop & Calculate Points</span>
+                </button>
+            </div>
         </div>
         <div>
             <img src="{{ url_for('static', filename='images/hero-illustration.png') }}" 
@@ -27,15 +38,27 @@
         <!-- Sol Taraf - Kamera -->
         <div>
             <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
-                <div class="p-6 border-b border-gray-100">
-                    <h2 class="text-2xl font-bold text-gray-800">Live Detection</h2>
-                    <p class="text-gray-600 mt-2">Point your camera at plastic bottles to detect them</p>
+                <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Live Detection</h2>
+                        <p class="text-gray-600 mt-2">Point your camera at plastic bottles to detect them</p>
+                    </div>
+                    <template x-if="detectionActive">
+                        <div class="flex items-center">
+                            <span class="inline-block w-3 h-3 bg-red-500 rounded-full mr-2 animate-pulse"></span>
+                            <span class="text-red-500 font-medium">Live</span>
+                        </div>
+                    </template>
                 </div>
                 <div class="relative bg-gray-50">
-                    <template x-if="imagePreview">
-                        <img :src="imagePreview" class="w-full h-auto object-cover" alt="Camera preview">
+                    <!-- Video feed or captured image -->
+                    <template x-if="detectionActive && videoFeedUrl">
+                        <img :src="videoFeedUrl" class="w-full h-auto object-cover min-h-[400px]" alt="Live video feed">
                     </template>
-                    <template x-if="!imagePreview">
+                    <template x-if="!detectionActive && imagePreview">
+                        <img :src="imagePreview" class="w-full h-auto object-cover min-h-[400px]" alt="Camera preview">
+                    </template>
+                    <template x-if="!detectionActive && !imagePreview">
                         <div class="flex items-center justify-center h-[400px] text-gray-400">
                             <div class="text-center">
                                 <i class="fas fa-camera text-6xl mb-4"></i>
@@ -44,15 +67,28 @@
                             </div>
                         </div>
                     </template>
+                    
+                    <!-- Status overlay -->
+                    <template x-if="detectionActive">
+                        <div class="absolute top-4 right-4 bg-black bg-opacity-70 text-white p-3 rounded-lg shadow-lg">
+                            <p class="text-lg font-bold" x-text="'Detected: ' + detectionCount"></p>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
 
         <!-- Sağ Taraf - Sonuçlar -->
         <div class="space-y-6">
-            <!-- Şişe Sayıları -->
+            <!-- Şişe Sayıları ve Toplam Puan -->
             <div class="bg-white rounded-2xl shadow-lg p-6">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">Detection Results</h2>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Detection Results</h2>
+                    <div class="text-right">
+                        <p class="text-sm text-gray-500">Total Points</p>
+                        <p class="text-3xl font-bold text-green-600" x-text="totalPoints || 0">0</p>
+                    </div>
+                </div>
                 <div class="grid grid-cols-3 gap-6">
                     <div class="bg-green-50 rounded-xl p-4 text-center">
                         <div class="text-green-600 mb-2">
@@ -60,6 +96,7 @@
                         </div>
                         <p class="text-4xl font-bold text-green-600" x-text="smallBottles || 0">0</p>
                         <p class="text-sm text-gray-600 mt-2">Small Bottle</p>
+                        <p class="text-xs text-gray-500 mt-1">(10 points each)</p>
                     </div>
                     <div class="bg-green-50 rounded-xl p-4 text-center">
                         <div class="text-green-600 mb-2">
@@ -67,6 +104,7 @@
                         </div>
                         <p class="text-4xl font-bold text-green-600" x-text="mediumBottles || 0">0</p>
                         <p class="text-sm text-gray-600 mt-2">Medium Bottle</p>
+                        <p class="text-xs text-gray-500 mt-1">(20 points each)</p>
                     </div>
                     <div class="bg-green-50 rounded-xl p-4 text-center">
                         <div class="text-green-600 mb-2">
@@ -74,6 +112,7 @@
                         </div>
                         <p class="text-4xl font-bold text-green-600" x-text="largeBottles || 0">0</p>
                         <p class="text-sm text-gray-600 mt-2">Large Bottle</p>
+                        <p class="text-xs text-gray-500 mt-1">(30 points each)</p>
                     </div>
                 </div>
             </div>
@@ -87,21 +126,263 @@
                             <img :src="'data:image/png;base64,' + qrCode" 
                                  alt="QR Code" 
                                  class="mx-auto max-w-[200px] rounded-lg shadow-lg">
-                            <p class="text-gray-600 text-sm mt-4">
+                            <p class="text-green-600 font-medium mt-3" x-text="'Total: ' + totalPoints + ' points'"></p>
+                            <p class="text-gray-600 text-sm mt-2">
                                 <i class="fas fa-info-circle mr-1"></i>
                                 Scan this QR code with the GreenEarn mobile app
                             </p>
                         </div>
                     </template>
                     <template x-if="!qrCode">
-                        <div class="text-gray-400">
+                        <div class="text-gray-400 py-8">
                             <i class="fas fa-qrcode text-6xl mb-4"></i>
                             <p>QR code will appear after detection</p>
+                            <template x-if="detectionActive">
+                                <p class="text-sm text-gray-500 mt-2">Detection is running - press "Stop" to generate QR</p>
+                            </template>
                         </div>
                     </template>
                 </div>
             </div>
+            
+            <!-- İlerleme Durumu (Status) -->
+            <template x-if="detectionActive">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Real-time Status</h3>
+                    <div class="flex items-center">
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-green-600 h-3 rounded-full animate-pulse" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-sm text-gray-600 mt-2">
+                        <span>Detecting bottles...</span>
+                        <span x-text="'Updated: ' + lastUpdateTime"></span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-4">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Drop bottles into the container for real-time detection
+                    </p>
+                </div>
+            </template>
         </div>
     </div>
 </div>
-{% endblock %} 
+
+<!-- Alpine.js Script -->
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('bottleDetector', () => ({
+        // State variables
+        processing: false,
+        detectionActive: false,
+        imagePreview: null,
+        qrCode: null,
+        videoFeedUrl: null,
+        smallBottles: 0,
+        mediumBottles: 0,
+        largeBottles: 0,
+        totalPoints: 0,
+        detectionCount: 0,
+        statusInterval: null,
+        lastUpdateTime: '00:00:00',
+        
+        // Initialize
+        init() {
+            // Video feed URL - Flask endpoint
+            this.videoFeedUrl = '/api/video_feed';
+        },
+        
+        // Methods
+        formatTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+        },
+        
+        startRealTimeDetection() {
+            this.processing = true;
+            
+            // Reset values
+            this.smallBottles = 0;
+            this.mediumBottles = 0;
+            this.largeBottles = 0;
+            this.totalPoints = 0;
+            this.qrCode = null;
+            
+            // Start detection API call
+            fetch('/api/start_detection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.detectionActive = true;
+                    this.startStatusPolling();
+                } else {
+                    alert('Error starting detection: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to start detection. Please try again.');
+            })
+            .finally(() => {
+                this.processing = false;
+            });
+        },
+        
+        stopDetection() {
+            this.processing = true;
+            
+            // Stop status polling
+            if (this.statusInterval) {
+                clearInterval(this.statusInterval);
+                this.statusInterval = null;
+            }
+            
+            // Stop detection API call
+            fetch('/api/stop_detection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update UI with results
+                    this.detectionActive = false;
+                    this.updateResults(data);
+                    
+                    // Get the last frame as image preview
+                    this.getDetectionStatus();
+                } else {
+                    alert('Error stopping detection: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to stop detection. Please try again.');
+            })
+            .finally(() => {
+                this.processing = false;
+            });
+        },
+        
+        startStatusPolling() {
+            // Get initial status immediately
+            this.getDetectionStatus();
+            
+            // Then poll regularly
+            this.statusInterval = setInterval(() => {
+                this.getDetectionStatus();
+            }, 1000); // Update every second
+        },
+        
+        getDetectionStatus() {
+            fetch('/api/detection_status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update bottle counts
+                        if (data.bottle_counts) {
+                            this.smallBottles = data.bottle_counts.small || 0;
+                            this.mediumBottles = data.bottle_counts.medium || 0;
+                            this.largeBottles = data.bottle_counts.large || 0;
+                        }
+                        
+                        // Update total points and detection count
+                        this.totalPoints = data.total_points || 0;
+                        this.detectionCount = data.detection_count || 0;
+                        
+                        // Update image preview if not in live mode
+                        if (!this.detectionActive && data.current_frame) {
+                            this.imagePreview = 'data:image/jpeg;base64,' + data.current_frame;
+                        }
+                        
+                        // Update last update time
+                        this.lastUpdateTime = this.formatTime();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error getting status:', error);
+                });
+        },
+        
+        updateResults(data) {
+            // Update bottle counts
+            if (data.bottle_counts) {
+                this.smallBottles = data.bottle_counts.small || 0;
+                this.mediumBottles = data.bottle_counts.medium || 0;
+                this.largeBottles = data.bottle_counts.large || 0;
+            }
+            
+            // Update QR code and points
+            this.qrCode = data.qr_code || null;
+            this.totalPoints = data.total_points || 0;
+        },
+        
+        captureImage() {
+            // For single image capture (legacy functionality)
+            this.processing = true;
+            this.qrCode = null;
+            
+            fetch('/api/capture')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.imagePreview = 'data:image/jpeg;base64,' + data.image;
+                        
+                        // Now detect bottles
+                        return fetch('/api/detect', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                image: data.image
+                            })
+                        });
+                    } else {
+                        throw new Error(data.error || 'Failed to capture image');
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Count bottles by size
+                        this.smallBottles = 0;
+                        this.mediumBottles = 0;
+                        this.largeBottles = 0;
+                        this.totalPoints = 0;
+                        
+                        if (data.debug_info && data.debug_info.bottle_counts) {
+                            this.smallBottles = data.debug_info.bottle_counts.small || 0;
+                            this.mediumBottles = data.debug_info.bottle_counts.medium || 0;
+                            this.largeBottles = data.debug_info.bottle_counts.large || 0;
+                            this.totalPoints = data.debug_info.total_points || 0;
+                        }
+                        
+                        // Set QR code
+                        this.qrCode = data.qr_code || null;
+                    } else {
+                        alert('Error detecting bottles: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to process image. Please try again.');
+                })
+                .finally(() => {
+                    this.processing = false;
+                });
+        }
+    }));
+});
+</script>
+{% endblock %}
