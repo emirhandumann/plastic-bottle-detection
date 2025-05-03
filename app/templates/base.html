@@ -8,11 +8,14 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    
     <!-- Custom CSS -->
     <style>
-        [x-cloak] { 
-            display: none !important; 
-        }
         .bg-custom-gradient {
             background: linear-gradient(135deg, #e6f7f2 0%, #ffffff 100%);
         }
@@ -132,9 +135,6 @@
         </div>
     </footer>
 
-    <!-- Alpine.js -->
-    <script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
-    
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

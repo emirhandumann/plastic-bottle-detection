@@ -6,21 +6,13 @@
     [x-cloak] { display: none !important; }
 </style>
 
-<div class="max-w-7xl mx-auto" x-data="bottleDetector" x-cloak>
+<div class="max-w-7xl mx-auto" x-data="bottleDetector">
     <!-- Hero Section -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
         <div>
             <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-6">Smart Plastic Bottle Detection with GreenEarn</h1>
             <p class="text-xl text-gray-600 mb-8">Help save the environment by detecting and recycling plastic bottles. Our AI-powered system makes it easy and efficient.</p>
-            <!-- Statik butonlar (Alpine.js yüklenene kadar görünecek) -->
-            <div class="flex space-x-4" x-show="false">
-                <button class="btn-primary text-white px-8 py-3 rounded-lg font-medium text-lg shadow-lg">
-                    <i class="fas fa-play-circle"></i>
-                    <span class="ml-2">Start Real-time Detection</span>
-                </button>
-            </div>
-            <!-- Dinamik butonlar (Alpine.js yüklendikten sonra görünecek) -->
-            <div class="flex space-x-4" x-show="true">
+            <div class="flex space-x-4">
                 <button 
                     class="btn-primary text-white px-8 py-3 rounded-lg font-medium text-lg shadow-lg hover:shadow-xl transition"
                     x-on:click="startRealTimeDetection()" 
@@ -206,8 +198,14 @@ document.addEventListener('alpine:init', () => {
             // Video feed URL - Flask endpoint
             this.videoFeedUrl = '/api/video_feed';
             
-            // Set initial state immediately to prevent flash of buttons
+            // Set initial state
             this.detectionActive = false;
+            this.processing = false;
+            
+            // Force Alpine.js to update the UI
+            this.$nextTick(() => {
+                this.$forceUpdate();
+            });
         },
         
         // Methods
