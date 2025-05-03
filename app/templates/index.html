@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto" x-data="bottleDetector">
+<style>
+    /* Alpine.js FOUC (Flash Of Unstyled Content) önleyici stiller */
+    [x-cloak] { display: none !important; }
+</style>
+
+<div class="max-w-7xl mx-auto" x-data="bottleDetector" x-cloak>
     <!-- Hero Section -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
         <div>
@@ -12,6 +17,8 @@
                     class="btn-primary text-white px-8 py-3 rounded-lg font-medium text-lg shadow-lg hover:shadow-xl transition"
                     x-on:click="startRealTimeDetection()" 
                     x-bind:disabled="processing || detectionActive"
+                    x-bind:class="{'opacity-50 cursor-not-allowed': processing || detectionActive}"
+                    x-cloak
                     x-show="!detectionActive">
                     <i class="fas fa-play-circle"></i>
                     <span class="ml-2">Start Real-time Detection</span>
@@ -20,9 +27,18 @@
                     class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-medium text-lg shadow-lg hover:shadow-xl transition"
                     x-on:click="stopDetection()" 
                     x-bind:disabled="processing"
+                    x-bind:class="{'opacity-50 cursor-not-allowed': processing}"
+                    x-cloak
                     x-show="detectionActive">
                     <i class="fas" :class="processing ? 'fa-spinner fa-spin' : 'fa-stop-circle'"></i>
                     <span class="ml-2">Stop & Calculate Points</span>
+                </button>
+            </div>
+            <!-- Sayfa yüklenene kadar gösterilecek statik butonlar -->
+            <div class="flex space-x-4" x-show="false">
+                <button class="btn-primary text-white px-8 py-3 rounded-lg font-medium text-lg shadow-lg opacity-50">
+                    <i class="fas fa-play-circle"></i>
+                    <span class="ml-2">Start Real-time Detection</span>
                 </button>
             </div>
         </div>
@@ -190,6 +206,9 @@ document.addEventListener('alpine:init', () => {
         init() {
             // Video feed URL - Flask endpoint
             this.videoFeedUrl = '/api/video_feed';
+            
+            // Set initial state immediately to prevent flash of buttons
+            this.detectionActive = false;
         },
         
         // Methods
