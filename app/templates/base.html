@@ -137,5 +137,179 @@
 
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('bottleDetector', () => ({
+            processing: false,
+            detectionActive: false,
+            imagePreview: null,
+            qrCode: null,
+            videoFeedUrl: null,
+            smallBottles: 0,
+            mediumBottles: 0,
+            largeBottles: 0,
+            totalPoints: 0,
+            detectionCount: 0,
+            statusInterval: null,
+            lastUpdateTime: '00:00:00',
+            init() {
+                this.videoFeedUrl = '/api/video_feed';
+                this.detectionActive = false;
+                this.processing = false;
+            },
+            formatTime() {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                return `${hours}:${minutes}:${seconds}`;
+            },
+            startRealTimeDetection() {
+                this.processing = true;
+                this.smallBottles = 0;
+                this.mediumBottles = 0;
+                this.largeBottles = 0;
+                this.totalPoints = 0;
+                this.qrCode = null;
+                fetch('/api/start_detection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.detectionActive = true;
+                        this.startStatusPolling();
+                    } else {
+                        alert('Error starting detection: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to start detection. Please try again.');
+                })
+                .finally(() => {
+                    this.processing = false;
+                });
+            },
+            stopDetection() {
+                this.processing = true;
+                if (this.statusInterval) {
+                    clearInterval(this.statusInterval);
+                    this.statusInterval = null;
+                }
+                fetch('/api/stop_detection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.detectionActive = false;
+                        this.updateResults(data);
+                        this.getDetectionStatus();
+                    } else {
+                        alert('Error stopping detection: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to stop detection. Please try again.');
+                })
+                .finally(() => {
+                    this.processing = false;
+                });
+            },
+            startStatusPolling() {
+                this.getDetectionStatus();
+                this.statusInterval = setInterval(() => {
+                    this.getDetectionStatus();
+                }, 1000);
+            },
+            getDetectionStatus() {
+                fetch('/api/detection_status')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.bottle_counts) {
+                                this.smallBottles = data.bottle_counts.small || 0;
+                                this.mediumBottles = data.bottle_counts.medium || 0;
+                                this.largeBottles = data.bottle_counts.large || 0;
+                            }
+                            this.totalPoints = data.total_points || 0;
+                            this.detectionCount = data.detection_count || 0;
+                            if (!this.detectionActive && data.current_frame) {
+                                this.imagePreview = 'data:image/jpeg;base64,' + data.current_frame;
+                            }
+                            this.lastUpdateTime = this.formatTime();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error getting status:', error);
+                    });
+            },
+            updateResults(data) {
+                if (data.bottle_counts) {
+                    this.smallBottles = data.bottle_counts.small || 0;
+                    this.mediumBottles = data.bottle_counts.medium || 0;
+                    this.largeBottles = data.bottle_counts.large || 0;
+                }
+                this.qrCode = data.qr_code || null;
+                this.totalPoints = data.total_points || 0;
+            },
+            captureImage() {
+                this.processing = true;
+                this.qrCode = null;
+                fetch('/api/capture')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.imagePreview = 'data:image/jpeg;base64,' + data.image;
+                            return fetch('/api/detect', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    image: data.image
+                                })
+                            });
+                        } else {
+                            throw new Error(data.error || 'Failed to capture image');
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.smallBottles = 0;
+                            this.mediumBottles = 0;
+                            this.largeBottles = 0;
+                            this.totalPoints = 0;
+                            if (data.debug_info && data.debug_info.bottle_counts) {
+                                this.smallBottles = data.debug_info.bottle_counts.small || 0;
+                                this.mediumBottles = data.debug_info.bottle_counts.medium || 0;
+                                this.largeBottles = data.debug_info.bottle_counts.large || 0;
+                                this.totalPoints = data.debug_info.total_points || 0;
+                            }
+                            this.qrCode = data.qr_code || null;
+                        } else {
+                            alert('Error detecting bottles: ' + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to process image. Please try again.');
+                    })
+                    .finally(() => {
+                        this.processing = false;
+                    });
+            }
+        }));
+    });
+    </script>
 </body>
 </html> 
