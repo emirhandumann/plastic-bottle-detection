@@ -223,21 +223,19 @@ def video_feed():
 @bp.route("/start_detection", methods=["POST"])
 def start_detection():
     global is_processing, detection_thread, picam2
-
+    print("[DEBUG] start_detection fonksiyonu çağrıldı")
     if not is_processing:
         if initialize_camera() and load_model():
             is_processing = True
-
+            print("[DEBUG] Thread'ler başlatılıyor")
             # Thread'leri başlat
             capture_thread = threading.Thread(target=capture_frames)
             process_thread = threading.Thread(target=process_frames)
-
             capture_thread.daemon = True
             process_thread.daemon = True
-
             capture_thread.start()
             process_thread.start()
-
+            print("[DEBUG] Thread'ler başlatıldı")
             return jsonify({"status": "success", "message": "Tespit başlatıldı"})
         else:
             return jsonify(
