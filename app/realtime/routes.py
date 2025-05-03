@@ -41,16 +41,22 @@ def cleanup_camera():
 def initialize_camera():
     global picam2
     with camera_lock:
+        print("[DEBUG] initialize_camera: başlıyor")
         try:
             cleanup_camera()
+            print("[DEBUG] initialize_camera: cleanup_camera sonrası")
             time.sleep(2)
             picam2 = Picamera2()
+            print("[DEBUG] initialize_camera: Picamera2 nesnesi oluşturuldu")
             preview_config = picam2.create_preview_configuration(
                 main={"size": (1920, 1080), "format": "RGB888"}
             )
+            print("[DEBUG] initialize_camera: preview_config oluşturuldu")
             picam2.configure(preview_config)
+            print("[DEBUG] initialize_camera: configure sonrası")
             try:
                 picam2.start(show_preview=False)
+                print("[DEBUG] initialize_camera: start sonrası")
                 time.sleep(3)
                 print("Kamera başarıyla başlatıldı")
                 return True
