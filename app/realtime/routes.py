@@ -224,8 +224,12 @@ def video_feed():
 def start_detection():
     global is_processing, detection_thread, picam2
     print("[DEBUG] start_detection fonksiyonu çağrıldı")
+    camera_ok = initialize_camera()
+    print(f"[DEBUG] initialize_camera sonucu: {camera_ok}")
+    model_ok = load_model()
+    print(f"[DEBUG] load_model sonucu: {model_ok}")
     if not is_processing:
-        if initialize_camera() and load_model():
+        if camera_ok and model_ok:
             is_processing = True
             print("[DEBUG] Thread'ler başlatılıyor")
             # Thread'leri başlat
@@ -238,6 +242,7 @@ def start_detection():
             print("[DEBUG] Thread'ler başlatıldı")
             return jsonify({"status": "success", "message": "Tespit başlatıldı"})
         else:
+            print("[DEBUG] Kamera veya model başlatılamadı")
             return jsonify(
                 {"status": "error", "message": "Kamera veya model başlatılamadı"}
             )
