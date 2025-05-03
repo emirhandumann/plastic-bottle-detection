@@ -205,7 +205,7 @@ def generate_frames():
             time.sleep(0.1)
 
 
-@bp.route("/realtime")
+@bp.route("/")
 def realtime():
     return render_template("realtime.html")
 

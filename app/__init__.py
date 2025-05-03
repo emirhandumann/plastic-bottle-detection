@@ -6,6 +6,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # Blueprint'leri kaydet
     from app.api import bp as api_bp
 
     app.register_blueprint(api_bp, url_prefix="/api")
@@ -14,6 +15,7 @@ def create_app():
 
     app.register_blueprint(realtime_bp, url_prefix="/realtime")
 
+    # Ana sayfa rotaları
     @app.route("/")
     def index():
         return render_template("index.html")
