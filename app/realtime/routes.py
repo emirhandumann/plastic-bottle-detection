@@ -166,6 +166,7 @@ def capture_frames():
     while is_processing:
         try:
             frame = picam2.capture_array()
+            print("[DEBUG] Frame alındı")
             if frame_queue.full():
                 frame_queue.get()  # Eski kareyi at
             frame_queue.put(frame)
@@ -180,8 +181,8 @@ def process_frames():
         try:
             if not frame_queue.empty():
                 frame = frame_queue.get()
+                print("[DEBUG] Frame işleniyor")
                 detections, processed_frame = process_frame(frame)
-
                 if processing_queue.full():
                     processing_queue.get()
                 processing_queue.put((detections, processed_frame))
@@ -196,6 +197,7 @@ def generate_frames():
         try:
             if not processing_queue.empty():
                 detections, frame = processing_queue.get()
+                print("[DEBUG] Frame gönderiliyor (web)")
                 ret, buffer = cv2.imencode(".jpg", frame)
                 frame = buffer.tobytes()
                 yield (
