@@ -175,7 +175,9 @@
     </div>
 </div>
 
-<!-- Alpine.js Script -->
+<!-- Alpine.js -->
+<script defer src="https://unpkg.com/alpinejs@3.13.3/dist/cdn.min.js"></script>
+<!-- bottleDetector Alpine.js kodu -->
 <script>
 document.addEventListener('alpine:init', () => {
     Alpine.data('bottleDetector', () => ({
@@ -195,17 +197,9 @@ document.addEventListener('alpine:init', () => {
         
         // Initialize
         init() {
-            // Video feed URL - Flask endpoint
             this.videoFeedUrl = '/api/video_feed';
-            
-            // Set initial state
             this.detectionActive = false;
             this.processing = false;
-            
-            // Force Alpine.js to update the UI
-            this.$nextTick(() => {
-                this.$forceUpdate();
-            });
         },
         
         // Methods
@@ -219,15 +213,11 @@ document.addEventListener('alpine:init', () => {
         
         startRealTimeDetection() {
             this.processing = true;
-            
-            // Reset values
             this.smallBottles = 0;
             this.mediumBottles = 0;
             this.largeBottles = 0;
             this.totalPoints = 0;
             this.qrCode = null;
-            
-            // Start detection API call
             fetch('/api/start_detection', {
                 method: 'POST',
                 headers: {
@@ -254,14 +244,10 @@ document.addEventListener('alpine:init', () => {
         
         stopDetection() {
             this.processing = true;
-            
-            // Stop status polling
             if (this.statusInterval) {
                 clearInterval(this.statusInterval);
                 this.statusInterval = null;
             }
-            
-            // Stop detection API call
             fetch('/api/stop_detection', {
                 method: 'POST',
                 headers: {
@@ -271,11 +257,8 @@ document.addEventListener('alpine:init', () => {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update UI with results
                     this.detectionActive = false;
                     this.updateResults(data);
-                    
-                    // Get the last frame as image preview
                     this.getDetectionStatus();
                 } else {
                     alert('Error stopping detection: ' + (data.error || 'Unknown error'));
@@ -291,13 +274,10 @@ document.addEventListener('alpine:init', () => {
         },
         
         startStatusPolling() {
-            // Get initial status immediately
             this.getDetectionStatus();
-            
-            // Then poll regularly
             this.statusInterval = setInterval(() => {
                 this.getDetectionStatus();
-            }, 1000); // Update every second
+            }, 1000);
         },
         
         getDetectionStatus() {
@@ -305,23 +285,16 @@ document.addEventListener('alpine:init', () => {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Update bottle counts
                         if (data.bottle_counts) {
                             this.smallBottles = data.bottle_counts.small || 0;
                             this.mediumBottles = data.bottle_counts.medium || 0;
                             this.largeBottles = data.bottle_counts.large || 0;
                         }
-                        
-                        // Update total points and detection count
                         this.totalPoints = data.total_points || 0;
                         this.detectionCount = data.detection_count || 0;
-                        
-                        // Update image preview if not in live mode
                         if (!this.detectionActive && data.current_frame) {
                             this.imagePreview = 'data:image/jpeg;base64,' + data.current_frame;
                         }
-                        
-                        // Update last update time
                         this.lastUpdateTime = this.formatTime();
                     }
                 })
@@ -331,30 +304,23 @@ document.addEventListener('alpine:init', () => {
         },
         
         updateResults(data) {
-            // Update bottle counts
             if (data.bottle_counts) {
                 this.smallBottles = data.bottle_counts.small || 0;
                 this.mediumBottles = data.bottle_counts.medium || 0;
                 this.largeBottles = data.bottle_counts.large || 0;
             }
-            
-            // Update QR code and points
             this.qrCode = data.qr_code || null;
             this.totalPoints = data.total_points || 0;
         },
         
         captureImage() {
-            // For single image capture (legacy functionality)
             this.processing = true;
             this.qrCode = null;
-            
             fetch('/api/capture')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         this.imagePreview = 'data:image/jpeg;base64,' + data.image;
-                        
-                        // Now detect bottles
                         return fetch('/api/detect', {
                             method: 'POST',
                             headers: {
@@ -371,20 +337,16 @@ document.addEventListener('alpine:init', () => {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Count bottles by size
                         this.smallBottles = 0;
                         this.mediumBottles = 0;
                         this.largeBottles = 0;
                         this.totalPoints = 0;
-                        
                         if (data.debug_info && data.debug_info.bottle_counts) {
                             this.smallBottles = data.debug_info.bottle_counts.small || 0;
                             this.mediumBottles = data.debug_info.bottle_counts.medium || 0;
                             this.largeBottles = data.debug_info.bottle_counts.large || 0;
                             this.totalPoints = data.debug_info.total_points || 0;
                         }
-                        
-                        // Set QR code
                         this.qrCode = data.qr_code || null;
                     } else {
                         alert('Error detecting bottles: ' + (data.error || 'Unknown error'));
