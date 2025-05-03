@@ -22,45 +22,46 @@ INPUT_HEIGHT = 960
 CONFIDENCE_THRESHOLD = 0.30
 NMS_THRESHOLD = 0.4
 
+camera_lock = threading.Lock()
+
 
 def cleanup_camera():
     global picam2
-    try:
-        if picam2 is not None:
-            picam2.stop()
-            picam2.close()
-            picam2 = None
-            time.sleep(2)
-    except Exception as e:
-        print(f"Kamera temizleme hatası: {str(e)}")
+    with camera_lock:
+        try:
+            if picam2 is not None:
+                picam2.stop()
+                picam2.close()
+                picam2 = None
+                time.sleep(2)
+        except Exception as e:
+            print(f"Kamera temizleme hatası: {str(e)}")
 
 
 def initialize_camera():
     global picam2
-    try:
-        cleanup_camera()
-        time.sleep(2)
-
-        picam2 = Picamera2()
-        preview_config = picam2.create_preview_configuration(
-            main={"size": (1920, 1080), "format": "RGB888"}
-        )
-        picam2.configure(preview_config)
-
+    with camera_lock:
         try:
-            picam2.start(show_preview=False)
-            time.sleep(3)
-            print("Kamera başarıyla başlatıldı")
-            return True
-        except Exception as start_error:
-            print(f"Kamera başlatma hatası: {str(start_error)}")
             cleanup_camera()
+            time.sleep(2)
+            picam2 = Picamera2()
+            preview_config = picam2.create_preview_configuration(
+                main={"size": (1920, 1080), "format": "RGB888"}
+            )
+            picam2.configure(preview_config)
+            try:
+                picam2.start(show_preview=False)
+                time.sleep(3)
+                print("Kamera başarıyla başlatıldı")
+                return True
+            except Exception as start_error:
+                print(f"Kamera başlatma hatası: {str(start_error)}")
+                cleanup_camera()
+                return False
+        except Exception as e:
+            print(f"Kamera başlatma hatası: {str(e)}")
+            picam2 = None
             return False
-
-    except Exception as e:
-        print(f"Kamera başlatma hatası: {str(e)}")
-        picam2 = None
-        return False
 
 
 def load_model():
