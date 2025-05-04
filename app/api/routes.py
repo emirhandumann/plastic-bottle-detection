@@ -116,6 +116,7 @@ def process_image(image):
     # Get outputs
     outputs = net.forward()
     print(f"[LOG] process_image: model output shape: {outputs.shape}")
+    print("[LOG] outputs example:", outputs.reshape(-1)[:20])
 
     # Process results
     boxes = []
