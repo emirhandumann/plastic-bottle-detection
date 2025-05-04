@@ -107,94 +107,70 @@ def process_image(image):
     print(f"[LOG] process_image: input shape: {image.shape}")
     height, width = image.shape[:2]
 
-    # Modelin girdi boyutlarına göre resmi küçült
     blob = cv2.dnn.blobFromImage(
         image, 1 / 255.0, (INPUT_WIDTH, INPUT_HEIGHT), swapRB=True, crop=False
     )
     net.setInput(blob)
-
-    # Get outputs
     outputs = net.forward()
     print(f"[LOG] process_image: model output shape: {outputs.shape}")
     print("[LOG] outputs example:", outputs.reshape(-1)[:20])
 
-    # Process results
+    # Çıktı: (1, 5, 18900)
+    outputs = outputs[0]  # (5, 18900)
     boxes = []
     confidences = []
-    class_ids = []
 
-    # YOLOv8 output processing - modelin çıktı formatına göre uyarlayın
-    rows = outputs.shape[2]
-    for i in range(rows):
-        confidence = float(outputs[0, 4, i])
+    for i in range(outputs.shape[1]):
+        x = outputs[0, i]
+        y = outputs[1, i]
+        w = outputs[2, i]
+        h = outputs[3, i]
+        conf = outputs[4, i]
 
-        # Confidence threshold
-        if confidence > CONFIDENCE_THRESHOLD:
-            # Get normalized coordinates
-            x = float(outputs[0, 0, i])
-            y = float(outputs[0, 1, i])
-            w = float(outputs[0, 2, i])
-            h = float(outputs[0, 3, i])
-
-            # Convert to pixel coordinates
+        if conf > CONFIDENCE_THRESHOLD:
+            # Normalize koordinatları piksele çevir
             x1 = int((x - w / 2) * width)
             y1 = int((y - h / 2) * height)
             box_width = int(w * width)
             box_height = int(h * height)
 
-            # Ensure coordinates are within bounds
+            # Kutuların sınırda kalmasını sağla
             x1 = max(0, min(x1, width - 1))
             y1 = max(0, min(y1, height - 1))
             box_width = min(box_width, width - x1)
             box_height = min(box_height, height - y1)
 
-            # Skip tiny boxes
             if box_width <= 5 or box_height <= 5:
                 continue
 
             boxes.append([x1, y1, box_width, box_height])
-            confidences.append(confidence)
-            class_ids.append(0)  # Single class: bottle
+            confidences.append(float(conf))
 
-    # Apply non-max suppression
+    # Non-max suppression
     detections = []
     if len(boxes) > 0:
-        try:
-            indices = cv2.dnn.NMSBoxes(
-                boxes, confidences, CONFIDENCE_THRESHOLD, NMS_THRESHOLD
+        indices = cv2.dnn.NMSBoxes(
+            boxes, confidences, CONFIDENCE_THRESHOLD, NMS_THRESHOLD
+        )
+        if isinstance(indices, np.ndarray):
+            indices = indices.flatten()
+        for i in indices:
+            box = boxes[i]
+            x1, y1 = box[0], box[1]
+            w, h = box[2], box[3]
+            x2, y2 = x1 + w, y1 + h
+            bottle_height = h
+            if bottle_height < 10:
+                continue
+            points = calculate_points(bottle_height)
+            detections.append(
+                {
+                    "bbox": [x1, y1, x2, y2],
+                    "confidence": confidences[i],
+                    "class": 0,
+                    "points": points,
+                }
             )
-
-            # Check if indices is numpy array or list
-            if isinstance(indices, np.ndarray):
-                indices = indices.flatten()
-
-            # Process each valid detection
-            for i in indices:
-                box = boxes[i]
-                x1, y1 = box[0], box[1]
-                w, h = box[2], box[3]
-                x2, y2 = x1 + w, y1 + h
-
-                # Calculate bottle height
-                bottle_height = h
-
-                # Skip detections with tiny height
-                if bottle_height < 10:
-                    continue
-
-                points = calculate_points(bottle_height)
-
-                detections.append(
-                    {
-                        "bbox": [x1, y1, x2, y2],
-                        "confidence": float(confidences[i]),
-                        "class": class_ids[i],
-                        "points": points,
-                    }
-                )
-
-        except Exception as e:
-            print(f"Error during NMS: {str(e)}")
 
     print(f"[LOG] process_image: tespit edilen nesne sayısı: {len(boxes)}")
     print(f"[LOG] process_image: dönen detection sayısı: {len(detections)}")
