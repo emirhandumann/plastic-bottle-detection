@@ -402,7 +402,7 @@ def calculate_points(height):
     return points
 
 
-def visualize_detections(image, detections):
+def visualize_detections(image, detections, save_path=None):
     vis_image = image.copy()
     for det in detections:
         x1, y1, x2, y2 = det["bbox"]
@@ -442,6 +442,10 @@ def visualize_detections(image, detections):
             2,
             cv2.LINE_AA,
         )
+
+    if save_path:
+        cv2.imwrite(save_path, cv2.cvtColor(vis_image, cv2.COLOR_RGB2BGR))
+
     return vis_image
 
 
