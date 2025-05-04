@@ -1,4 +1,4 @@
-from flask import jsonify, request, Response
+from flask import jsonify, request
 from app.api import bp
 import cv2
 import numpy as np
@@ -9,7 +9,6 @@ import os
 import json
 import time
 import hashlib
-import threading
 from PIL import Image
 from picamera2 import Picamera2
 
@@ -20,18 +19,6 @@ INPUT_WIDTH = 960
 INPUT_HEIGHT = 960
 CONFIDENCE_THRESHOLD = 0.30
 NMS_THRESHOLD = 0.4
-detection_active = False
-detection_thread = None
-current_detections = []
-bottle_counts = {"small": 0, "medium": 0, "large": 0}
-total_points = 0
-last_frame = None
-processing_lock = threading.Lock()
-
-# --- Duplicate Detection için global değişkenler ---
-recent_bottles = []  # Her eleman: {"bbox": [x1, y1, x2, y2], "timestamp": time.time()}
-MAX_MEMORY_SEC = 5  # 5 saniye boyunca aynı şişeyi tekrar sayma
-IOU_THRESHOLD = 0.5  # Aynı şişe için IoU eşiği
 
 
 def cleanup_camera():
@@ -41,7 +28,7 @@ def cleanup_camera():
             picam2.stop()
             picam2.close()
             picam2 = None
-            time.sleep(2)
+            time.sleep(2)  # Kameranın tamamen kapanması için bekle
     except Exception as e:
         print(f"Camera cleanup error: {str(e)}")
 
@@ -50,18 +37,18 @@ def initialize_camera():
     global picam2
     try:
         cleanup_camera()
-        time.sleep(2)
+        time.sleep(2)  # Longer wait after cleanup
 
         picam2 = Picamera2()
-        # Daha düşük çözünürlüklü ve daha yüksek FPS ayarları
+        # Simplified camera configuration
         preview_config = picam2.create_preview_configuration(
-            main={"size": (1280, 720), "format": "RGB888"}
+            main={"size": (1920, 1080), "format": "RGB888"}
         )
         picam2.configure(preview_config)
 
         try:
             picam2.start(show_preview=False)
-            time.sleep(3)
+            time.sleep(3)  # Longer wait after start
             print("Camera initialized successfully")
             return True
         except Exception as start_error:
@@ -78,7 +65,6 @@ def initialize_camera():
 def load_model():
     global net
     try:
-        # YOLOv8n (nano) gibi daha hafif bir model kullanmayı düşünün
         weights_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
             "plastic_bottle_detection",
@@ -98,7 +84,7 @@ def load_model():
 
         # CUDA kullanılabilirse aktif et
         net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-        net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+        net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)  # Raspberry Pi'de CPU kullan
 
         print("Model successfully loaded")
         return True
@@ -297,18 +283,122 @@ def process_image(image):
     return detections
 
 
+# Başlangıçta kamera ve modeli yükle
+initialize_camera()
+load_model()
+
+
+@bp.route("/capture", methods=["GET"])
+def capture():
+    global picam2
+
+    if picam2 is None or not initialize_camera():
+        return jsonify({"success": False, "error": "Camera initialization failed"}), 500
+
+    try:
+        # Görüntü yakala
+        image = picam2.capture_array()
+
+        # PIL Image'e çevir (zaten RGB formatında)
+        pil_image = Image.fromarray(image)
+
+        # Base64'e çevir
+        buffered = io.BytesIO()
+        pil_image.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
+
+        return jsonify({"success": True, "image": img_str})
+
+    except Exception as e:
+        print(f"Capture error: {str(e)}")
+        cleanup_camera()  # Hata durumunda kamerayı temizle
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
+@bp.route("/detect", methods=["POST"])
+def detect():
+    global net
+
+    if net is None and not load_model():
+        return jsonify({"success": False, "error": "Model loading failed"}), 500
+
+    try:
+        # Get image from request
+        data = request.get_json()
+        image_data = base64.b64decode(data["image"])
+        image = Image.open(io.BytesIO(image_data))
+        image_np = np.array(image)
+
+        print("\n=== New Detection Request ===")
+        print(f"Input image shape: {image_np.shape}")
+
+        # Process image and get detections
+        detections = process_image(image_np)
+
+        # Visualize detections
+        if detections and len(detections) > 0:
+            visualize_detections(image_np, detections, save_path="debug_detection.jpg")
+
+        # Şişe sayılarını hesapla
+        bottle_counts = {"small": 0, "medium": 0, "large": 0}
+
+        total_points = 0
+        if detections:
+            for det in detections:
+                height = det["bbox"][3] - det["bbox"][1]  # y2 - y1
+                if height < 300:  # Small bottle
+                    bottle_counts["small"] += 1
+                elif height < 450:  # Medium bottle
+                    bottle_counts["medium"] += 1
+                else:  # Large bottle
+                    bottle_counts["large"] += 1
+                total_points += det["points"]
+
+        print(f"Final total points: {total_points}")
+        print(f"Bottle counts: {bottle_counts}")
+
+        # Tespit olmasa bile başarılı yanıt dön
+        qr_data = (
+            generate_qr_code(total_points, bottle_counts) if total_points > 0 else None
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "detections": detections,
+                "qr_code": qr_data,
+                "debug_info": {
+                    "num_detections": len(detections) if detections else 0,
+                    "bottle_counts": bottle_counts,
+                    "total_points": total_points,
+                },
+            }
+        )
+
+    except Exception as e:
+        print(f"Detection error: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
 def calculate_points(height):
     """Calculate points based on bottle height"""
+    print(f"Calculating points for height: {height}")
+
     # Based on your terminal output, bottles appear to have heights around 400-500 pixels
     if height < 100:  # Too small, likely false positive
         points = 0
+        size = "too small - rejected"
     elif height < 300:  # Small bottle
         points = 10
+        size = "small"
     elif height < 450:  # Medium bottle
         points = 20
+        size = "medium"
     else:  # Large bottle
         points = 30
+        size = "large"
 
+    print(f"Bottle size: {size}, Points: {points}")
     return points
 
 
@@ -355,18 +445,16 @@ def visualize_detections(image, detections):
     return vis_image
 
 
-def generate_qr_code():
+def generate_qr_code(points, bottle_counts):
     """Generate QR code with points, bottle counts and timestamp"""
-    global total_points, bottle_counts
-
     qr_data = {
         "type": "green_earn_points",
-        "points": total_points,
+        "points": points,
         "bottle_counts": bottle_counts,
         "timestamp": int(time.time()),  # Unix timestamp
         "version": "1.0",
         "checksum": hashlib.sha256(
-            f"{total_points}:{int(time.time())}:green_earn_secret".encode()
+            f"{points}:{int(time.time())}:green_earn_secret".encode()
         ).hexdigest(),
     }
 
@@ -379,250 +467,3 @@ def generate_qr_code():
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode()
-
-
-def compute_iou(boxA, boxB):
-    xA = max(boxA[0], boxB[0])
-    yA = max(boxA[1], boxB[1])
-    xB = min(boxA[2], boxB[2])
-    yB = min(boxA[3], boxB[3])
-    interArea = max(0, xB - xA) * max(0, yB - yA)
-    boxAArea = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
-    boxBArea = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
-    iou = interArea / float(boxAArea + boxBArea - interArea + 1e-6)
-    return iou
-
-
-def is_duplicate(new_bbox, recent_bottles):
-    now = time.time()
-    for bottle in recent_bottles:
-        if now - bottle["timestamp"] > MAX_MEMORY_SEC:
-            continue
-        if compute_iou(new_bbox, bottle["bbox"]) > IOU_THRESHOLD:
-            return True
-    return False
-
-
-def detection_loop():
-    global detection_active, current_detections, total_points, bottle_counts, last_frame, last_detections
-    print("Starting detection loop")
-
-    # Bir önceki tespitleri sıfırla
-    current_detections = []
-    total_points = 0
-    bottle_counts = {"small": 0, "medium": 0, "large": 0}
-    all_bottles = []  # Oturum boyunca tespit edilen tüm şişeler
-    last_detections = []  # Her frame'de modelin tespit ettiği kutular
-
-    while detection_active:
-        try:
-            if picam2 is None:
-                if not initialize_camera():
-                    print("Camera initialization failed in detection loop")
-                    time.sleep(1)
-                    continue
-
-            # Görüntü yakala
-            frame = picam2.capture_array()
-            print(f"[LOG] detection_loop: alınan frame shape: {frame.shape}")
-            with processing_lock:
-                last_frame = frame.copy()
-
-            # Tespit işlemi
-            detections = process_image(frame)
-            print(
-                f"[LOG] detection_loop: tespit edilen detection sayısı: {len(detections)}"
-            )
-
-            # Görselleştirme için her zaman modelin tespit ettiği kutuları sakla
-            with processing_lock:
-                last_detections = detections.copy()
-
-            # --- Aynı şişeyi tekrar puanlamama mekanizması ---
-            filtered_detections = []
-            for det in detections:
-                bbox = det["bbox"]
-                is_new = True
-                for bottle in all_bottles:
-                    if compute_iou(bbox, bottle["bbox"]) > IOU_THRESHOLD:
-                        is_new = False
-                        break
-                if is_new:
-                    filtered_detections.append(det)
-                    all_bottles.append({"bbox": bbox})
-                else:
-                    print("Aynı şişe tekrar tespit edildi, puan verilmedi.")
-            detections = filtered_detections
-
-            # Şişeleri incele ve sınıflandır (sadece yeni şişeler için)
-            if detections:
-                with processing_lock:
-                    for det in detections:
-                        x1, y1, x2, y2 = det["bbox"]
-                        height = y2 - y1
-                        if height < 300:
-                            bottle_counts["small"] += 1
-                        elif height < 450:
-                            bottle_counts["medium"] += 1
-                        else:
-                            bottle_counts["large"] += 1
-                        total_points += det["points"]
-                    current_detections = detections
-
-            # FPS hızı ayarlanabilir (Raspberry Pi CPU kullanımı için)
-            time.sleep(5)  # 10 saniye bekle
-
-        except Exception as e:
-            print(f"Error in detection loop: {str(e)}")
-            time.sleep(1)
-
-
-# Başlangıçta kamera ve modeli yükle
-initialize_camera()
-load_model()
-
-
-@bp.route("/start_detection", methods=["POST"])
-def start_detection():
-    global detection_active, detection_thread, current_detections, total_points, bottle_counts
-
-    if detection_active:
-        return jsonify({"success": False, "error": "Detection already active"}), 400
-
-    try:
-        # Kamera kontrol ve model kontrol
-        if picam2 is None and not initialize_camera():
-            return (
-                jsonify({"success": False, "error": "Camera initialization failed"}),
-                500,
-            )
-
-        if net is None and not load_model():
-            return jsonify({"success": False, "error": "Model loading failed"}), 500
-
-        # Değerleri sıfırla
-        current_detections = []
-        total_points = 0
-        bottle_counts = {"small": 0, "medium": 0, "large": 0}
-
-        # Algılama döngüsünü başlat
-        detection_active = True
-        detection_thread = threading.Thread(target=detection_loop)
-        detection_thread.daemon = True
-        detection_thread.start()
-
-        return jsonify({"success": True, "message": "Detection started"})
-
-    except Exception as e:
-        print(f"Error starting detection: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@bp.route("/stop_detection", methods=["POST"])
-def stop_detection():
-    global detection_active, detection_thread, current_detections, total_points, bottle_counts
-
-    if not detection_active:
-        return jsonify({"success": False, "error": "Detection not active"}), 400
-
-    try:
-        # Algılama döngüsünü durdur
-        detection_active = False
-
-        # İş parçacığının bitmesini bekle
-        if detection_thread and detection_thread.is_alive():
-            detection_thread.join(timeout=3.0)
-
-        # QR kodunu oluştur
-        qr_data = generate_qr_code() if total_points > 0 else None
-
-        # Sonuçları döndür
-        result = {
-            "success": True,
-            "detections": current_detections,
-            "bottle_counts": bottle_counts,
-            "total_points": total_points,
-            "qr_code": qr_data,
-        }
-
-        return jsonify(result)
-
-    except Exception as e:
-        print(f"Error stopping detection: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@bp.route("/detection_status", methods=["GET"])
-def detection_status():
-    global detection_active, current_detections, total_points, bottle_counts, last_frame, last_detections
-
-    try:
-        # Son görüntüyü ve tespitleri döndür
-        with processing_lock:
-            if last_frame is not None:
-                # Tespitleri görüntüye işle
-                if last_detections:
-                    frame_with_detections = visualize_detections(
-                        last_frame, last_detections
-                    )
-                else:
-                    frame_with_detections = last_frame
-
-                # Base64'e çevir
-                pil_image = Image.fromarray(frame_with_detections)
-                buffered = io.BytesIO()
-                pil_image.save(
-                    buffered, format="JPEG", quality=70
-                )  # Kaliteyi düşürerek veri miktarını azalt
-                img_str = base64.b64encode(buffered.getvalue()).decode()
-            else:
-                img_str = None
-
-        return jsonify(
-            {
-                "success": True,
-                "active": detection_active,
-                "current_frame": img_str,
-                "bottle_counts": bottle_counts,
-                "total_points": total_points,
-                "detection_count": len(current_detections) if current_detections else 0,
-            }
-        )
-
-    except Exception as e:
-        print(f"Error getting detection status: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@bp.route("/video_feed", methods=["GET"])
-def video_feed():
-    """MJPEG video akışı oluştur"""
-
-    def generate():
-        global last_frame, current_detections
-        while True:
-            # Lock ile son frame'e erişim
-            with processing_lock:
-                if last_frame is not None:
-                    if current_detections:
-                        # Tespitleri görüntüye işle
-                        frame = visualize_detections(last_frame, current_detections)
-                    else:
-                        frame = last_frame.copy()
-
-                    # JPEG'e dönüştür
-                    ret, jpeg = cv2.imencode(
-                        ".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70]
-                    )
-                    if ret:
-                        yield (
-                            b"--frame\r\n"
-                            b"Content-Type: image/jpeg\r\n\r\n"
-                            + jpeg.tobytes()
-                            + b"\r\n"
-                        )
-
-            # FPS ayarlaması
-            time.sleep(0.1)  # ~10 FPS
-
-    return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
