@@ -187,20 +187,19 @@ def process_image(image):
                 w = float(outputs[0, 2, i])
                 h = float(outputs[0, 3, i])
 
-                # Debug: Çıktı değerlerini yazdır
-                print(f"Detection {i} - x: {x}, y: {y}, w: {w}, h: {h}")
+                # Validate coordinates (sometimes models output raw values, not normalized)
+                if x > 1.0 or y > 1.0:  # Raw pixel values detected
+                    # Convert to normalized coordinates
+                    x = x / width
+                    y = y / height
+                    w = w / width
+                    h = h / height
 
-                # Eğer x, y, w, h değerleri 1'den büyükse, piksel cinsindendir
-                if x > 1.0 or y > 1.0 or w > 1.0 or h > 1.0:
-                    x1 = int(x - w / 2)
-                    y1 = int(y - h / 2)
-                    box_width = int(w)
-                    box_height = int(h)
-                else:
-                    x1 = int((x - w / 2) * width)
-                    y1 = int((y - h / 2) * height)
-                    box_width = int(w * width)
-                    box_height = int(h * height)
+                # Scale to image dimensions
+                x1 = int((x - w / 2) * width)
+                y1 = int((y - h / 2) * height)
+                box_width = int(w * width)
+                box_height = int(h * height)
 
                 # Ensure coordinates are within image bounds
                 x1 = max(0, min(x1, width - 1))
@@ -403,7 +402,7 @@ def calculate_points(height):
     return points
 
 
-def visualize_detections(image, detections, save_path=None):
+def visualize_detections(image, detections):
     vis_image = image.copy()
     for det in detections:
         x1, y1, x2, y2 = det["bbox"]
@@ -443,10 +442,6 @@ def visualize_detections(image, detections, save_path=None):
             2,
             cv2.LINE_AA,
         )
-
-    if save_path:
-        cv2.imwrite(save_path, cv2.cvtColor(vis_image, cv2.COLOR_RGB2BGR))
-
     return vis_image
 
 
