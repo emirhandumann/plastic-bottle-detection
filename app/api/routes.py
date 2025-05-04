@@ -28,6 +28,11 @@ total_points = 0
 last_frame = None
 processing_lock = threading.Lock()
 
+# --- Duplicate Detection için global değişkenler ---
+recent_bottles = []  # Her eleman: {"bbox": [x1, y1, x2, y2], "timestamp": time.time()}
+MAX_MEMORY_SEC = 5  # 5 saniye boyunca aynı şişeyi tekrar sayma
+IOU_THRESHOLD = 0.5  # Aynı şişe için IoU eşiği
+
 
 def cleanup_camera():
     global picam2
@@ -361,9 +366,30 @@ def generate_qr_code():
     return base64.b64encode(buffered.getvalue()).decode()
 
 
-def detection_loop():
-    global detection_active, current_detections, total_points, bottle_counts, last_frame
+def compute_iou(boxA, boxB):
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+    interArea = max(0, xB - xA) * max(0, yB - yA)
+    boxAArea = (boxA[2] - boxA[0]) * (boxA[3] - boxA[1])
+    boxBArea = (boxB[2] - boxB[0]) * (boxB[3] - boxB[1])
+    iou = interArea / float(boxAArea + boxBArea - interArea + 1e-6)
+    return iou
 
+
+def is_duplicate(new_bbox, recent_bottles):
+    now = time.time()
+    for bottle in recent_bottles:
+        if now - bottle["timestamp"] > MAX_MEMORY_SEC:
+            continue
+        if compute_iou(new_bbox, bottle["bbox"]) > IOU_THRESHOLD:
+            return True
+    return False
+
+
+def detection_loop():
+    global detection_active, current_detections, total_points, bottle_counts, last_frame, recent_bottles
     print("Starting detection loop")
 
     # Bir önceki tespitleri sıfırla
@@ -392,27 +418,36 @@ def detection_loop():
                 f"[LOG] detection_loop: tespit edilen detection sayısı: {len(detections)}"
             )
 
+            # --- Duplicate Detection ---
+            new_recent_bottles = []
+            now = time.time()
+            filtered_detections = []
+            for det in detections:
+                bbox = det["bbox"]
+                if not is_duplicate(bbox, recent_bottles):
+                    filtered_detections.append(det)
+                    new_recent_bottles.append({"bbox": bbox, "timestamp": now})
+                else:
+                    print("Aynı şişe tekrar tespit edildi, puan verilmedi.")
+            # Sadece güncel şişeleri bellekte tut
+            recent_bottles = [
+                b for b in recent_bottles if now - b["timestamp"] < MAX_MEMORY_SEC
+            ] + new_recent_bottles
+            detections = filtered_detections
+
             # Şişeleri incele ve sınıflandır
             if detections:
                 with processing_lock:
-                    # Yeni şişeleri ara
                     for det in detections:
-                        # İzleme algoritması için gerçek tespit mantığı burada geliştirilebilir
-                        # Burada basit bir yaklaşım kullanıyoruz
-
                         x1, y1, x2, y2 = det["bbox"]
                         height = y2 - y1
-
-                        # Şişe boyutunu hesapla
-                        if height < 300:  # Small bottle
+                        if height < 300:
                             bottle_counts["small"] += 1
-                        elif height < 450:  # Medium bottle
+                        elif height < 450:
                             bottle_counts["medium"] += 1
-                        else:  # Large bottle
+                        else:
                             bottle_counts["large"] += 1
-
                         total_points += det["points"]
-
                     current_detections = detections
 
             # FPS hızı ayarlanabilir (Raspberry Pi CPU kullanımı için)
