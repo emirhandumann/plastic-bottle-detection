@@ -313,30 +313,45 @@ def calculate_points(height):
 
 
 def visualize_detections(image, detections):
-    """Draw bounding boxes on the image"""
     vis_image = image.copy()
-
-    # Draw all boxes from the detection step
     for det in detections:
         x1, y1, x2, y2 = det["bbox"]
         conf = det["confidence"]
         points = det["points"]
+        height = y2 - y1
 
-        # Draw rectangle
-        cv2.rectangle(vis_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        # Boyuta göre renk seç
+        if height < 300:
+            color = (255, 0, 0)  # Mavi - Küçük
+            label_size = "Small"
+        elif height < 450:
+            color = (0, 255, 255)  # Sarı - Orta
+            label_size = "Medium"
+        else:
+            color = (0, 0, 255)  # Kırmızı - Büyük
+            label_size = "Large"
 
-        # Display confidence and points
-        label = f"{conf:.2f}, {points}pts"
+        # Kutunun içini yarı saydam doldur
+        overlay = vis_image.copy()
+        cv2.rectangle(overlay, (x1, y1), (x2, y2), color, -1)
+        alpha = 0.2  # Saydamlık
+        cv2.addWeighted(overlay, alpha, vis_image, 1 - alpha, 0, vis_image)
+
+        # Kenarlık çiz
+        cv2.rectangle(vis_image, (x1, y1), (x2, y2), color, 2)
+
+        # Etiket
+        label = f"{label_size} | {conf:.2f} | {points}pts"
         cv2.putText(
             vis_image,
             label,
             (x1, y1 - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (0, 255, 0),
+            0.7,
+            color,
             2,
+            cv2.LINE_AA,
         )
-
     return vis_image
 
 
