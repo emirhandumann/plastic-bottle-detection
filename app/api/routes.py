@@ -404,15 +404,15 @@ def is_duplicate(new_bbox, recent_bottles):
 
 
 def detection_loop():
-    global detection_active, current_detections, total_points, bottle_counts, last_frame, recent_bottles
+    global detection_active, current_detections, total_points, bottle_counts, last_frame
     print("Starting detection loop")
 
     # Bir önceki tespitleri sıfırla
     current_detections = []
     total_points = 0
     bottle_counts = {"small": 0, "medium": 0, "large": 0}
+    all_bottles = []  # Oturum boyunca tespit edilen tüm şişeler
 
-    # Otomatik tespit özelliği: Belirli aralıklarla görüntü al ve şişeleri tespit et
     while detection_active:
         try:
             if picam2 is None:
@@ -433,21 +433,20 @@ def detection_loop():
                 f"[LOG] detection_loop: tespit edilen detection sayısı: {len(detections)}"
             )
 
-            # --- Duplicate Detection ---
-            new_recent_bottles = []
-            now = time.time()
+            # --- Aynı şişeyi tekrar puanlamama mekanizması ---
             filtered_detections = []
             for det in detections:
                 bbox = det["bbox"]
-                if not is_duplicate(bbox, recent_bottles):
+                is_new = True
+                for bottle in all_bottles:
+                    if compute_iou(bbox, bottle["bbox"]) > IOU_THRESHOLD:
+                        is_new = False
+                        break
+                if is_new:
                     filtered_detections.append(det)
-                    new_recent_bottles.append({"bbox": bbox, "timestamp": now})
+                    all_bottles.append({"bbox": bbox})
                 else:
                     print("Aynı şişe tekrar tespit edildi, puan verilmedi.")
-            # Sadece güncel şişeleri bellekte tut
-            recent_bottles = [
-                b for b in recent_bottles if now - b["timestamp"] < MAX_MEMORY_SEC
-            ] + new_recent_bottles
             detections = filtered_detections
 
             # Şişeleri incele ve sınıflandır
