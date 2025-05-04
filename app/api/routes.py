@@ -404,7 +404,7 @@ def is_duplicate(new_bbox, recent_bottles):
 
 
 def detection_loop():
-    global detection_active, current_detections, total_points, bottle_counts, last_frame
+    global detection_active, current_detections, total_points, bottle_counts, last_frame, last_detections
     print("Starting detection loop")
 
     # Bir önceki tespitleri sıfırla
@@ -412,6 +412,7 @@ def detection_loop():
     total_points = 0
     bottle_counts = {"small": 0, "medium": 0, "large": 0}
     all_bottles = []  # Oturum boyunca tespit edilen tüm şişeler
+    last_detections = []  # Her frame'de modelin tespit ettiği kutular
 
     while detection_active:
         try:
@@ -433,6 +434,10 @@ def detection_loop():
                 f"[LOG] detection_loop: tespit edilen detection sayısı: {len(detections)}"
             )
 
+            # Görselleştirme için her zaman modelin tespit ettiği kutuları sakla
+            with processing_lock:
+                last_detections = detections.copy()
+
             # --- Aynı şişeyi tekrar puanlamama mekanizması ---
             filtered_detections = []
             for det in detections:
@@ -449,7 +454,7 @@ def detection_loop():
                     print("Aynı şişe tekrar tespit edildi, puan verilmedi.")
             detections = filtered_detections
 
-            # Şişeleri incele ve sınıflandır
+            # Şişeleri incele ve sınıflandır (sadece yeni şişeler için)
             if detections:
                 with processing_lock:
                     for det in detections:
@@ -549,16 +554,16 @@ def stop_detection():
 
 @bp.route("/detection_status", methods=["GET"])
 def detection_status():
-    global detection_active, current_detections, total_points, bottle_counts, last_frame
+    global detection_active, current_detections, total_points, bottle_counts, last_frame, last_detections
 
     try:
         # Son görüntüyü ve tespitleri döndür
         with processing_lock:
             if last_frame is not None:
                 # Tespitleri görüntüye işle
-                if current_detections:
+                if last_detections:
                     frame_with_detections = visualize_detections(
-                        last_frame, current_detections
+                        last_frame, last_detections
                     )
                 else:
                     frame_with_detections = last_frame
