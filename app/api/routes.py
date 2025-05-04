@@ -16,8 +16,8 @@ from picamera2 import Picamera2
 # Global değişkenler
 picam2 = None
 net = None
-INPUT_WIDTH = 640  # Düşük çözünürlük (daha hızlı işleme için)
-INPUT_HEIGHT = 640
+INPUT_WIDTH = 960
+INPUT_HEIGHT = 960
 CONFIDENCE_THRESHOLD = 0.30
 NMS_THRESHOLD = 0.4
 detection_active = False
@@ -104,6 +104,7 @@ def load_model():
 
 
 def process_image(image):
+    print(f"[LOG] process_image: input shape: {image.shape}")
     height, width = image.shape[:2]
 
     # Modelin girdi boyutlarına göre resmi küçült
@@ -114,6 +115,7 @@ def process_image(image):
 
     # Get outputs
     outputs = net.forward()
+    print(f"[LOG] process_image: model output shape: {outputs.shape}")
 
     # Process results
     boxes = []
@@ -193,6 +195,8 @@ def process_image(image):
         except Exception as e:
             print(f"Error during NMS: {str(e)}")
 
+    print(f"[LOG] process_image: tespit edilen nesne sayısı: {len(boxes)}")
+    print(f"[LOG] process_image: dönen detection sayısı: {len(detections)}")
     return detections
 
 
@@ -286,11 +290,15 @@ def detection_loop():
 
             # Görüntü yakala
             frame = picam2.capture_array()
+            print(f"[LOG] detection_loop: alınan frame shape: {frame.shape}")
             with processing_lock:
                 last_frame = frame.copy()
 
             # Tespit işlemi
             detections = process_image(frame)
+            print(
+                f"[LOG] detection_loop: tespit edilen detection sayısı: {len(detections)}"
+            )
 
             # Şişeleri incele ve sınıflandır
             if detections:
@@ -316,7 +324,7 @@ def detection_loop():
                     current_detections = detections
 
             # FPS hızı ayarlanabilir (Raspberry Pi CPU kullanımı için)
-            time.sleep(0.1)  # ~10 FPS
+            time.sleep(5)  # 10 saniye bekle
 
         except Exception as e:
             print(f"Error in detection loop: {str(e)}")
