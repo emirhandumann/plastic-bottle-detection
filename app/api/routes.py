@@ -98,15 +98,35 @@ def process_image(image):
     original_height, original_width = image.shape[:2]
     print(f"Input image shape: {original_width}x{original_height}")
 
+    # Resize image to 960x960 while keeping aspect ratio
+    scale = min(INPUT_WIDTH / original_width, INPUT_HEIGHT / original_height)
+    new_width = int(original_width * scale)
+    new_height = int(original_height * scale)
+
+    # Resize image to 960x960 while keeping aspect ratio
+    resized_image = cv2.resize(
+        image, (new_width, new_height), interpolation=cv2.INTER_AREA
+    )
+
+    # Create a 960x960 black background
+    square_image = np.zeros((INPUT_HEIGHT, INPUT_WIDTH, 3), dtype=np.uint8)
+
+    # Resize image to 960x960 while keeping aspect ratio
+    x_offset = (INPUT_WIDTH - new_width) // 2
+    y_offset = (INPUT_HEIGHT - new_height) // 2
+    square_image[y_offset : y_offset + new_height, x_offset : x_offset + new_width] = (
+        resized_image
+    )
+
     # Prepare the image for the model
     blob = cv2.dnn.blobFromImage(
-        image, 1 / 255.0, (INPUT_WIDTH, INPUT_HEIGHT), swapRB=True, crop=False
+        square_image, 1 / 255.0, (INPUT_WIDTH, INPUT_HEIGHT), swapRB=True, crop=False
     )
     net.setInput(blob)
 
     # Calculate scale factors between original image and model input
-    scale_x = original_width / INPUT_WIDTH
-    scale_y = original_height / INPUT_HEIGHT
+    scale_x = original_width / new_width
+    scale_y = original_height / new_height
 
     # Get outputs
     outputs = net.forward()
