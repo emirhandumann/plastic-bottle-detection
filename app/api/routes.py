@@ -370,27 +370,36 @@ def calculate_points(height, image_height):
     return points
 
 
-def validate_detection(detection, image_shape):
-    """Tespitlerin geçerliliğini doğrula"""
+def validate_detection(
+    detection,
+    image_shape,
+    aspect_ratio_min=0.15,
+    aspect_ratio_max=0.8,
+    top_margin_ratio=0.05,
+):
+    """Tespitlerin geçerliliğini doğrula ve neden elendiğini detaylıca yazdır"""
     x1, y1, x2, y2 = detection["bbox"]
     h, w = image_shape[:2]
 
-    # Şişe oranı kontrolü (genişlik/yükseklik oranı)
     width = x2 - x1
     height = y2 - y1
 
-    if height <= 0:  # Geçersiz yükseklik
+    if height <= 0:
+        print(f"Tespit elendi: Geçersiz yükseklik (height={height})")
         return False
 
     aspect_ratio = width / height
-
-    if aspect_ratio < 0.2 or aspect_ratio > 0.7:
-        return False  # Şişeler genellikle belirli bir oran aralığındadır
-
-    # Konum kontrolü - şişeler genellikle resmin alt yarısında olur
-    if y1 < h * 0.1:  # Resmin en üst %10'luk kısmında şişe beklenmez
+    if aspect_ratio < aspect_ratio_min or aspect_ratio > aspect_ratio_max:
+        print(
+            f"Tespit elendi: Oran uygun değil (aspect_ratio={aspect_ratio:.2f}, min={aspect_ratio_min}, max={aspect_ratio_max})"
+        )
         return False
 
+    if y1 < h * top_margin_ratio:
+        print(f"Tespit elendi: Çok üstte (y1={y1}, eşik={h * top_margin_ratio})")
+        return False
+
+    print(f"Tespit GEÇERLİ: oran={aspect_ratio:.2f}, y1={y1}, yükseklik={height}")
     return True
 
 
