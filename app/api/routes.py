@@ -374,7 +374,7 @@ def validate_detection(
     detection,
     image_shape,
     aspect_ratio_min=0.15,
-    aspect_ratio_max=0.8,
+    aspect_ratio_max=3.0,
     top_margin_ratio=0.05,
 ):
     """Tespitlerin geçerliliğini doğrula ve neden elendiğini detaylıca yazdır"""
@@ -476,7 +476,9 @@ def detect():
         # Tespit doğrulama adımı
         valid_detections = []
         for det in detections:
-            if validate_detection(det, image_corrected.shape):
+            if validate_detection(
+                det, image_corrected.shape, aspect_ratio_min=0.15, aspect_ratio_max=3.0
+            ):
                 valid_detections.append(det)
             else:
                 print("Geçersiz tespit filtrelendi (oran veya konum)")
