@@ -17,7 +17,7 @@ picam2 = None
 net = None
 INPUT_WIDTH = 960
 INPUT_HEIGHT = 960
-CONFIDENCE_THRESHOLD = 0.30
+CONFIDENCE_THRESHOLD = 0.5
 NMS_THRESHOLD = 0.4
 
 
@@ -95,14 +95,18 @@ def load_model():
 
 
 def process_image(image):
-    height, width = image.shape[:2]
-    print(f"Input image shape: {width}x{height}")
+    original_height, original_width = image.shape[:2]
+    print(f"Input image shape: {original_width}x{original_height}")
 
-    # Prepare the image
+    # Prepare the image for the model
     blob = cv2.dnn.blobFromImage(
         image, 1 / 255.0, (INPUT_WIDTH, INPUT_HEIGHT), swapRB=True, crop=False
     )
     net.setInput(blob)
+
+    # Calculate scale factors between original image and model input
+    scale_x = original_width / INPUT_WIDTH
+    scale_y = original_height / INPUT_HEIGHT
 
     # Get outputs
     outputs = net.forward()
@@ -131,17 +135,17 @@ def process_image(image):
                 class_id = np.argmax(classes_scores)
                 x, y, w, h = outputs[0, 0:4, i]
 
-                # Convert to pixel coordinates
-                x1 = int((x - w / 2) * width)
-                y1 = int((y - h / 2) * height)
-                x2 = int((x + w / 2) * width)
-                y2 = int((y + h / 2) * height)
+                # Convert to pixel coordinates and scale to original image size
+                x1 = int((x - w / 2) * INPUT_WIDTH * scale_x)
+                y1 = int((y - h / 2) * INPUT_HEIGHT * scale_y)
+                x2 = int((x + w / 2) * INPUT_WIDTH * scale_x)
+                y2 = int((y + h / 2) * INPUT_HEIGHT * scale_y)
 
                 # Ensure coordinates are within bounds
-                x1 = max(0, min(x1, width - 1))
-                y1 = max(0, min(y1, height - 1))
-                x2 = max(0, min(x2, width - 1))
-                y2 = max(0, min(y2, height - 1))
+                x1 = max(0, min(x1, original_width - 1))
+                y1 = max(0, min(y1, original_height - 1))
+                x2 = max(0, min(x2, original_width - 1))
+                y2 = max(0, min(y2, original_height - 1))
 
                 box_width = x2 - x1
                 box_height = y2 - y1
@@ -190,22 +194,22 @@ def process_image(image):
                 # Validate coordinates (sometimes models output raw values, not normalized)
                 if x > 1.0 or y > 1.0:  # Raw pixel values detected
                     # Convert to normalized coordinates
-                    x = x / width
-                    y = y / height
-                    w = w / width
-                    h = h / height
+                    x = x / INPUT_WIDTH
+                    y = y / INPUT_HEIGHT
+                    w = w / INPUT_WIDTH
+                    h = h / INPUT_HEIGHT
 
-                # Scale to image dimensions
-                x1 = int((x - w / 2) * width)
-                y1 = int((y - h / 2) * height)
-                box_width = int(w * width)
-                box_height = int(h * height)
+                # Scale to original image dimensions - this is the key correction
+                x1 = int((x - w / 2) * INPUT_WIDTH * scale_x)
+                y1 = int((y - h / 2) * INPUT_HEIGHT * scale_y)
+                box_width = int(w * INPUT_WIDTH * scale_x)
+                box_height = int(h * INPUT_HEIGHT * scale_y)
 
                 # Ensure coordinates are within image bounds
-                x1 = max(0, min(x1, width - 1))
-                y1 = max(0, min(y1, height - 1))
-                box_width = min(box_width, width - x1)
-                box_height = min(box_height, height - y1)
+                x1 = max(0, min(x1, original_width - 1))
+                y1 = max(0, min(y1, original_height - 1))
+                box_width = min(box_width, original_width - x1)
+                box_height = min(box_height, original_height - y1)
 
                 # Skip tiny boxes
                 if box_width <= 5 or box_height <= 5:
@@ -266,7 +270,12 @@ def process_image(image):
 
                 detections.append(
                     {
-                        "bbox": [x1, y1, x2, y2],
+                        "bbox": [
+                            x1,
+                            y1,
+                            x2,
+                            y2,
+                        ],  # Changed to [x1, y1, x2, y2] for clarity
                         "confidence": float(confidences[i]),
                         "class": class_ids[i],
                         "points": points,
@@ -402,34 +411,56 @@ def calculate_points(height):
     return points
 
 
-def visualize_detections(image, detections, save_path="debug_detection.jpg"):
-    """Draw bounding boxes on the image for debugging"""
+def visualize_detections(image, detections, save_path=None):
+    """
+    Draw bounding boxes on the image for detected bottles.
+    The coordinates should already be scaled to the original image size from process_image.
+    """
     vis_image = image.copy()
-
-    # Draw all boxes from the detection step
     for det in detections:
-        x1, y1, x2, y2 = det["bbox"]
+        x1, y1, x2, y2 = det["bbox"]  # Already scaled to the original image
         conf = det["confidence"]
         points = det["points"]
+        height = y2 - y1
 
-        # Draw rectangle
-        cv2.rectangle(vis_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        # Boyuta göre renk seç
+        if height < 300:
+            color = (255, 0, 0)  # Mavi - Küçük
+            label_size = "Small"
+        elif height < 450:
+            color = (0, 255, 255)  # Sarı - Orta
+            label_size = "Medium"
+        else:
+            color = (0, 0, 255)  # Kırmızı - Büyük
+            label_size = "Large"
 
-        # Display confidence and points
-        label = f"{conf:.2f}, {points}pts"
+        # Debug output of the actual box coordinates
+        print(f"Drawing box at: x1={x1}, y1={y1}, x2={x2}, y2={y2}, height={height}")
+
+        # Kutunun içini yarı saydam doldur
+        overlay = vis_image.copy()
+        cv2.rectangle(overlay, (x1, y1), (x2, y2), color, -1)
+        alpha = 0.2  # Saydamlık
+        cv2.addWeighted(overlay, alpha, vis_image, 1 - alpha, 0, vis_image)
+
+        # Kenarlık çiz
+        cv2.rectangle(vis_image, (x1, y1), (x2, y2), color, 2)
+
+        # Etiket
+        label = f"{label_size} | {conf:.2f} | {points}pts"
         cv2.putText(
             vis_image,
             label,
             (x1, y1 - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (0, 255, 0),
+            0.7,
+            color,
             2,
+            cv2.LINE_AA,
         )
 
-    # Save the visualized image
-    cv2.imwrite(save_path, vis_image)
-    print(f"Debug visualization saved to {save_path}")
+    if save_path:
+        cv2.imwrite(save_path, cv2.cvtColor(vis_image, cv2.COLOR_RGB2BGR))
 
     return vis_image
 
