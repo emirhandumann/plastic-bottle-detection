@@ -197,11 +197,11 @@ def process_image(image):
                     f"[DEBUG] Detection {i}: x={x}, y={y}, w={w}, h={h} (normalize/pixel?)"
                 )
 
-                # Convert to pixel coordinates
-                x1 = int((x - w / 2) * width)
-                y1 = int((y - h / 2) * height)
-                x2 = int((x + w / 2) * width)
-                y2 = int((y + h / 2) * height)
+                # DÜZELTME: x, y sol üst köşe olarak kabul ediliyor
+                x1 = int(x * width)
+                y1 = int(y * height)
+                x2 = int((x + w) * width)
+                y2 = int((y + h) * height)
 
                 print(
                     f"[DEBUG] Detection {i}: x1={x1}, y1={y1}, x2={x2}, y2={y2} (pixel)"
@@ -272,11 +272,13 @@ def process_image(image):
                         f"[DEBUG] Detection {i}: Converted to normalize: x={x}, y={y}, w={w}, h={h}"
                     )
 
-                # Scale to image dimensions
-                x1 = int((x - w / 2) * width)
-                y1 = int((y - h / 2) * height)
+                # DÜZELTME: x, y sol üst köşe olarak kabul ediliyor
+                x1 = int(x * width)
+                y1 = int(y * height)
                 box_width = int(w * width)
                 box_height = int(h * height)
+                x2 = x1 + box_width
+                y2 = y1 + box_height
 
                 print(
                     f"[DEBUG] Detection {i}: x1={x1}, y1={y1}, w={box_width}, h={box_height} (pixel)"
