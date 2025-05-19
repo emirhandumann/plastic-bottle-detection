@@ -193,11 +193,19 @@ def process_image(image):
                 class_id = np.argmax(classes_scores)
                 x, y, w, h = outputs[0, 0:4, i]
 
+                print(
+                    f"[DEBUG] Detection {i}: x={x}, y={y}, w={w}, h={h} (normalize/pixel?)"
+                )
+
                 # Convert to pixel coordinates
                 x1 = int((x - w / 2) * width)
                 y1 = int((y - h / 2) * height)
                 x2 = int((x + w / 2) * width)
                 y2 = int((y + h / 2) * height)
+
+                print(
+                    f"[DEBUG] Detection {i}: x1={x1}, y1={y1}, x2={x2}, y2={y2} (pixel)"
+                )
 
                 # Ensure coordinates are within bounds
                 x1 = max(0, min(x1, width - 1))
@@ -249,6 +257,10 @@ def process_image(image):
                 w = float(outputs[0, 2, i])
                 h = float(outputs[0, 3, i])
 
+                print(
+                    f"[DEBUG] Detection {i}: x={x}, y={y}, w={w}, h={h} (normalize/pixel?)"
+                )
+
                 # Validate coordinates (sometimes models output raw values, not normalized)
                 if x > 1.0 or y > 1.0:  # Raw pixel values detected
                     # Convert to normalized coordinates
@@ -256,12 +268,19 @@ def process_image(image):
                     y = y / height
                     w = w / width
                     h = h / height
+                    print(
+                        f"[DEBUG] Detection {i}: Converted to normalize: x={x}, y={y}, w={w}, h={h}"
+                    )
 
                 # Scale to image dimensions
                 x1 = int((x - w / 2) * width)
                 y1 = int((y - h / 2) * height)
                 box_width = int(w * width)
                 box_height = int(h * height)
+
+                print(
+                    f"[DEBUG] Detection {i}: x1={x1}, y1={y1}, w={box_width}, h={box_height} (pixel)"
+                )
 
                 # Ensure coordinates are within image bounds
                 x1 = max(0, min(x1, width - 1))
