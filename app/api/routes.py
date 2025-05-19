@@ -537,34 +537,57 @@ def detect():
 
 
 def visualize_detections(image, detections, save_path="debug_detection.jpg"):
-    """Draw bounding boxes on the image for debugging"""
+    """Tespit kutularını farklı renk ve opaklıkta çiz"""
     vis_image = image.copy()
 
-    # Draw all boxes from the detection step
+    # Kutular için renkler
+    color_map = {
+        "small": (255, 128, 0),  # Turuncu
+        "medium": (0, 255, 255),  # Sarı
+        "large": (0, 0, 255),  # Kırmızı
+    }
+    alpha = 0.3  # Opaklık
+
+    overlay = vis_image.copy()
+
     for det in detections:
         x1, y1, x2, y2 = det["bbox"]
         conf = det["confidence"]
         points = det["points"]
+        height = y2 - y1
+        img_height = vis_image.shape[0]
+        normalized_height = height / img_height
+        # Şişe boyutunu belirle
+        if normalized_height < 0.25:
+            bottle_type = "small"
+        elif normalized_height < 0.4:
+            bottle_type = "medium"
+        else:
+            bottle_type = "large"
+        color = color_map[bottle_type]
 
-        # Draw rectangle
-        cv2.rectangle(vis_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        # Kutunun içini opak doldur
+        cv2.rectangle(overlay, (x1, y1), (x2, y2), color, -1)
+        # Kenar çiz
+        cv2.rectangle(vis_image, (x1, y1), (x2, y2), color, 2)
 
-        # Display confidence and points
-        label = f"{conf:.2f}, {points}pts"
+        # Etiket
+        label = f"{bottle_type} {conf:.2f}, {points}pts"
         cv2.putText(
             vis_image,
             label,
             (x1, y1 - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (0, 255, 0),
+            0.6,
+            color,
             2,
         )
 
-    # Save the visualized image
+    # Opaklığı uygula
+    vis_image = cv2.addWeighted(overlay, alpha, vis_image, 1 - alpha, 0)
+
     cv2.imwrite(save_path, vis_image)
     print(f"Debug visualization saved to {save_path}")
-
     return vis_image
 
 
