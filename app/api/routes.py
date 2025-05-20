@@ -44,8 +44,30 @@ def control_servo():
         # Wait
         time.sleep(1)
 
-        # 90 degree
-        duty = 90 / 18 + 2
+        # 100 degree
+        duty = 100 / 18 + 2
+        GPIO.output(SERVO_PIN, True)
+        pwm.ChangeDutyCycle(duty)
+        time.sleep(1)
+        GPIO.output(SERVO_PIN, False)
+        pwm.ChangeDutyCycle(0)
+
+        # Wait
+        time.sleep(1)
+
+        # First return to 0 degree
+        duty = 0 / 18 + 2
+        GPIO.output(SERVO_PIN, True)
+        pwm.ChangeDutyCycle(duty)
+        time.sleep(1)
+        GPIO.output(SERVO_PIN, False)
+        pwm.ChangeDutyCycle(0)
+
+        # Wait
+        time.sleep(1)
+
+        # Second return to 0 degree
+        duty = 0 / 18 + 2
         GPIO.output(SERVO_PIN, True)
         pwm.ChangeDutyCycle(duty)
         time.sleep(1)
