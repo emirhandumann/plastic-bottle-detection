@@ -11,6 +11,7 @@ import time
 import hashlib
 from PIL import Image
 from picamera2 import Picamera2
+import RPi.GPIO as GPIO
 
 # Global değişkenler
 picam2 = None
@@ -19,6 +20,44 @@ INPUT_WIDTH = 960
 INPUT_HEIGHT = 960
 CONFIDENCE_THRESHOLD = 0.5
 NMS_THRESHOLD = 0.4
+
+# GPIO pin num
+SERVO_PIN = 14
+
+# GPIO modunu ayarla
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(SERVO_PIN, GPIO.OUT)
+pwm = GPIO.PWM(SERVO_PIN, 50)
+pwm.start(0)
+
+
+def control_servo():
+    try:
+        # 0 degree
+        duty = 0 / 18 + 2
+        GPIO.output(SERVO_PIN, True)
+        pwm.ChangeDutyCycle(duty)
+        time.sleep(1)
+        GPIO.output(SERVO_PIN, False)
+        pwm.ChangeDutyCycle(0)
+
+        # Wait
+        time.sleep(1)
+
+        # 90 degree
+        duty = 90 / 18 + 2
+        GPIO.output(SERVO_PIN, True)
+        pwm.ChangeDutyCycle(duty)
+        time.sleep(1)
+        GPIO.output(SERVO_PIN, False)
+        pwm.ChangeDutyCycle(0)
+
+    except Exception as e:
+        print(f"Servo motor kontrol hatası: {str(e)}")
+    finally:
+        # Close servo
+        pwm.stop()
+        GPIO.cleanup()
 
 
 def cleanup_camera():
@@ -347,6 +386,8 @@ def detect():
         # Visualize detections
         if detections and len(detections) > 0:
             visualize_detections(image_np, detections, save_path="debug_detection.jpg")
+            # Şişe tespiti başarılı olduğunda servo motoru kontrol et
+            control_servo()
 
         # Şişe sayılarını hesapla
         bottle_counts = {"small": 0, "medium": 0, "large": 0}
