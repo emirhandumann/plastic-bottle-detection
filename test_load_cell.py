@@ -1,5 +1,5 @@
 import RPi.GPIO as GPIO
-from hx711 import SimpleHX711
+from hx711 import HX711
 
 GPIO.setmode(GPIO.BCM)
 
