@@ -1,11 +1,22 @@
-import RPi.GPIO as GPIO
+import time
 from hx711 import HX711
 
-GPIO.setmode(GPIO.BCM)
+hx = HX711(dout_pin=5, pd_sck_pin=6)
+hx.reset()
+hx.tare()
+print("Tartı sıfırlandı.")
 
-hx = HX711(dout_pin=6, pd_sck_pin=5)
-hx.zero()
+referenceUnit = 1.15  # Hesapladığın değeri buraya yaz
+hx.set_reference_unit(referenceUnit)
 
-while True:
-    reading = hx.get_data_mean()
-    print(reading)
+try:
+    while True:
+        val = hx.get_weight(5)
+        print(f"Ağırlık: {val:.2f} gram")
+        hx.power_down()
+        hx.power_up()
+        time.sleep(1)
+except KeyboardInterrupt:
+    print("Çıkılıyor...")
+finally:
+    pass
