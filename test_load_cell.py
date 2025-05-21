@@ -9,15 +9,19 @@ hx.reset()
 hx.zero()
 print("Tartı sıfırlandı.")
 
-# Kalibrasyon katsayısı (örnek)
-referenceUnit = 1.15  # Hesapladığın değeri buraya yaz
+referenceUnit = 1.15  # Kendi kalibrasyon katsayını yaz
+hx.set_reference_unit(referenceUnit)
+
+
+def get_stable_weight(hx, sample_count=10):
+    vals = [hx.get_weight(5) for _ in range(sample_count)]
+    return sum(vals) / len(vals)
+
 
 try:
     while True:
-        raw_val = hx.get_weight(5)
-        # Eğer ham değer çok büyük/küçük çıkarsa, referans katsayını değiştir
-        val = raw_val / referenceUnit
-        print(f"Ağırlık: {val:.2f} gram")
+        val = get_stable_weight(hx, 10)
+        print(f"Stabil Ağırlık: {val:.2f} gram")
         hx.power_down()
         hx.power_up()
         time.sleep(1)
