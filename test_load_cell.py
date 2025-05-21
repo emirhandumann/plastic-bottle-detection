@@ -6,7 +6,7 @@ from hx711 import HX711
 
 hx = HX711(dout=5, pd_sck=6)
 hx.reset()
-hx.zero()
+hx.tare()
 print("Tartı sıfırlandı.")
 
 referenceUnit = 1.15  # Kendi kalibrasyon katsayını yaz
