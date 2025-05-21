@@ -4,7 +4,7 @@ import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BCM)
 from hx711 import HX711
 
-hx = HX711(dout_pin=5, pd_sck_pin=6)
+hx = HX711(dout=5, pd_sck=6)
 hx.reset()
 hx.zero()
 print("Tartı sıfırlandı.")
