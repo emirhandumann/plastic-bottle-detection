@@ -17,7 +17,7 @@ import signal
 import sys
 import requests
 
-# Global değişkenler
+# Global variables
 picam2 = None
 net = None
 INPUT_WIDTH = 960
@@ -25,10 +25,10 @@ INPUT_HEIGHT = 960
 CONFIDENCE_THRESHOLD = 0.5
 NMS_THRESHOLD = 0.4
 
-# Şişe puanları (default)
+# Bottle points (default)
 BOTTLE_POINTS = {"small": 10, "medium": 20, "large": 30}
 
-# Azure servisinden puanları çek
+# Fetch bottle points from Azure service
 AZURE_POINTS_URL = "http://4.157.140.60:8000/api/bottles/public/points-info"
 
 
@@ -478,9 +478,10 @@ def detect():
         print(f"Bottle counts: {bottle_counts}")
 
         # Tespit olmasa bile başarılı yanıt dön
-        qr_data = (
-            generate_qr_code(total_points, bottle_counts) if total_points > 0 else None
-        )
+        if total_points > 0:
+            qr_data = generate_qr_code(total_points, bottle_counts)
+        else:
+            qr_data = "Something went wrong! No bottles detected in the container, please check the container. If you are experiencing a problem, please contact the support team!"
 
         return jsonify(
             {
