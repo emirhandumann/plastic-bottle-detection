@@ -466,9 +466,9 @@ def detect():
         if detections:
             for det in detections:
                 height = det["bbox"][3] - det["bbox"][1]  # y2 - y1
-                if height < 300:  # Small bottle
+                if height < 450:  # Small bottle
                     bottle_counts["small"] += 1
-                elif height < 450:  # Medium bottle
+                elif height < 600:  # Medium bottle
                     bottle_counts["medium"] += 1
                 else:  # Large bottle
                     bottle_counts["large"] += 1
