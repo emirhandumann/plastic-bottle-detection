@@ -39,11 +39,11 @@ def cleanup_gpio():
     GPIO.cleanup()
 
 
-# Program sonlanırken GPIO temizliği için
+# When the program exits, clean up the GPIO
 atexit.register(cleanup_gpio)
 
 
-# KeyboardInterrupt için
+# KeyboardInterrupt
 def signal_handler(sig, frame):
     print("Çıkış yapılıyor, GPIO temizleniyor...")
     cleanup_gpio()
@@ -55,7 +55,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 def control_servo():
     try:
-        # 0 derece
+        # 0 degree
         duty = 0 / 18 + 2
         GPIO.output(SERVO_PIN, True)
         pwm.ChangeDutyCycle(duty)
@@ -63,10 +63,10 @@ def control_servo():
         GPIO.output(SERVO_PIN, False)
         pwm.ChangeDutyCycle(0)
 
-        # Bekle
+        # Wait
         time.sleep(1)
 
-        # 100 derece
+        # 100 degree
         duty = 100 / 18 + 2
         GPIO.output(SERVO_PIN, True)
         pwm.ChangeDutyCycle(duty)
@@ -77,7 +77,7 @@ def control_servo():
         # Bekle
         time.sleep(1)
 
-        # İlk olarak tekrar 0 dereceye dön
+        # First, return to 0 degree
         duty = 0 / 18 + 2
         GPIO.output(SERVO_PIN, True)
         pwm.ChangeDutyCycle(duty)
@@ -85,10 +85,10 @@ def control_servo():
         GPIO.output(SERVO_PIN, False)
         pwm.ChangeDutyCycle(0)
 
-        # Bekle
+        # Wait
         time.sleep(1)
 
-        # İkinci kez 0 dereceye dön
+        # Second, return to 0 degree
         duty = 0 / 18 + 2
         GPIO.output(SERVO_PIN, True)
         pwm.ChangeDutyCycle(duty)
@@ -97,7 +97,7 @@ def control_servo():
         pwm.ChangeDutyCycle(0)
 
     except Exception as e:
-        print(f"Servo motor kontrol hatası: {str(e)}")
+        print(f"Servo motor control error: {str(e)}")
 
 
 def cleanup_camera():
@@ -107,7 +107,7 @@ def cleanup_camera():
             picam2.stop()
             picam2.close()
             picam2 = None
-            time.sleep(2)  # Kameranın tamamen kapanması için bekle
+            time.sleep(2)  # Wait for the camera to fully close
     except Exception as e:
         print(f"Camera cleanup error: {str(e)}")
 
@@ -158,12 +158,12 @@ def load_model():
         if not os.path.exists(weights_path):
             raise FileNotFoundError(f"Model file not found at {weights_path}")
 
-        # YOLOv8 modelini OpenCV ile yükle
+        # Load YOLOv8 model with OpenCV
         net = cv2.dnn.readNetFromONNX(weights_path)
 
-        # CUDA kullanılabilirse aktif et
+        # If CUDA is available, activate it
         net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-        net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)  # Raspberry Pi'de CPU kullan
+        net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)  # Use CPU on Raspberry Pi
 
         print("Model successfully loaded")
         return True
@@ -371,7 +371,7 @@ def process_image(image):
     return detections
 
 
-# Başlangıçta kamera ve modeli yükle
+# Start with camera and model
 initialize_camera()
 load_model()
 
@@ -384,13 +384,13 @@ def capture():
         return jsonify({"success": False, "error": "Camera initialization failed"}), 500
 
     try:
-        # Görüntü yakala
+        # Capture image
         image = picam2.capture_array()
 
-        # PIL Image'e çevir (zaten RGB formatında)
+        # Convert to PIL Image (already in RGB format)
         pil_image = Image.fromarray(image)
 
-        # Base64'e çevir
+        # Convert to Base64
         buffered = io.BytesIO()
         pil_image.save(buffered, format="JPEG")
         img_str = base64.b64encode(buffered.getvalue()).decode()
@@ -399,7 +399,7 @@ def capture():
 
     except Exception as e:
         print(f"Capture error: {str(e)}")
-        cleanup_camera()  # Hata durumunda kamerayı temizle
+        cleanup_camera()  # Clean up the camera in case of error
         return jsonify({"success": False, "error": str(e)}), 400
 
 
@@ -426,11 +426,11 @@ def detect():
         # Visualize detections
         if detections and len(detections) > 0:
             visualize_detections(image_np, detections, save_path="debug_detection.jpg")
-            # 3 saniye bekle ve sonra servo motoru kontrol et
-            time.sleep(3)
+            # Wait 3 seconds and then control the servo
+            time.sleep(5)
             control_servo()
 
-        # Şişe sayılarını hesapla
+        # Calculate bottle counts
         bottle_counts = {"small": 0, "medium": 0, "large": 0}
 
         total_points = 0
@@ -548,16 +548,13 @@ def visualize_detections(image, detections, save_path=None):
 
 
 def generate_qr_code(points, bottle_counts):
-    """Generate QR code with points, bottle counts and timestamp"""
+    """Generate QR code in the desired format"""
     qr_data = {
-        "type": "green_earn_points",
+        "containerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
         "points": points,
-        "bottle_counts": bottle_counts,
-        "timestamp": int(time.time()),  # Unix timestamp
-        "version": "1.0",
-        "checksum": hashlib.sha256(
-            f"{points}:{int(time.time())}:green_earn_secret".encode()
-        ).hexdigest(),
+        "numberOfSmallBottles": bottle_counts.get("small", 0),
+        "numberOfMediumBottles": bottle_counts.get("medium", 0),
+        "numberOfLargeBottles": bottle_counts.get("large", 0),
     }
 
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
