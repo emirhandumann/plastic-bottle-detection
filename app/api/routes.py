@@ -33,7 +33,12 @@ pwm.start(0)
 
 def control_servo():
     try:
-        # 0 degree
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(SERVO_PIN, GPIO.OUT)
+        pwm = GPIO.PWM(SERVO_PIN, 50)
+        pwm.start(0)
+
+        # 0 derece
         duty = 0 / 18 + 2
         GPIO.output(SERVO_PIN, True)
         pwm.ChangeDutyCycle(duty)
@@ -41,10 +46,10 @@ def control_servo():
         GPIO.output(SERVO_PIN, False)
         pwm.ChangeDutyCycle(0)
 
-        # Wait
+        # Bekle
         time.sleep(1)
 
-        # 100 degree
+        # 100 derece
         duty = 100 / 18 + 2
         GPIO.output(SERVO_PIN, True)
         pwm.ChangeDutyCycle(duty)
@@ -52,10 +57,10 @@ def control_servo():
         GPIO.output(SERVO_PIN, False)
         pwm.ChangeDutyCycle(0)
 
-        # Wait
+        # Bekle
         time.sleep(1)
 
-        # First return to 0 degree
+        # İlk olarak tekrar 0 dereceye dön
         duty = 0 / 18 + 2
         GPIO.output(SERVO_PIN, True)
         pwm.ChangeDutyCycle(duty)
@@ -63,10 +68,10 @@ def control_servo():
         GPIO.output(SERVO_PIN, False)
         pwm.ChangeDutyCycle(0)
 
-        # Wait
+        # Bekle
         time.sleep(1)
 
-        # Second return to 0 degree
+        # İkinci kez 0 dereceye dön
         duty = 0 / 18 + 2
         GPIO.output(SERVO_PIN, True)
         pwm.ChangeDutyCycle(duty)
@@ -77,9 +82,7 @@ def control_servo():
     except Exception as e:
         print(f"Servo motor kontrol hatası: {str(e)}")
     finally:
-        # Close servo
         pwm.stop()
-        GPIO.cleanup()
 
 
 def cleanup_camera():
