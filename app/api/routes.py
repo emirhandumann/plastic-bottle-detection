@@ -29,7 +29,7 @@ NMS_THRESHOLD = 0.4
 BOTTLE_POINTS = {"small": 10, "medium": 20, "large": 30}
 
 # Azure servisinden puanları çek
-AZURE_POINTS_URL = "http://4.157.140.60:8000/api/bottles/points-info"
+AZURE_POINTS_URL = "http://4.157.140.60:8000/api/bottles/public/points-info"
 
 
 def fetch_bottle_points():
