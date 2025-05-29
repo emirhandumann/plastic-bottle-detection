@@ -43,20 +43,20 @@ def fetch_bottle_points():
                 "medium": data.get("mediumBottlePoints", 20),
                 "large": data.get("largeBottlePoints", 30),
             }
-            print(f"Şişe puanları Azure'dan güncellendi: {BOTTLE_POINTS}")
+            print(f"Bottle points updated: {BOTTLE_POINTS}")
         else:
-            print(f"Azure puan servisi başarısız: {resp.status_code}")
+            print(f"Failed to fetch bottle points: {resp.status_code}")
     except Exception as e:
-        print(f"Azure puan servisine bağlanılamadı: {str(e)}")
+        print(f"Failed to fetch bottle points: {str(e)}")
 
 
-# Uygulama başında puanları çek
+# Fetch bottle points at startup
 fetch_bottle_points()
 
-# GPIO pin num
+# GPIO pin number
 SERVO_PIN = 14
 
-# GPIO modunu ayarla ve PWM başlat (sadece bir kez)
+# Set GPIO mode and start PWM (only once)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(SERVO_PIN, GPIO.OUT)
 pwm = GPIO.PWM(SERVO_PIN, 50)
@@ -68,13 +68,13 @@ def cleanup_gpio():
     GPIO.cleanup()
 
 
-# When the program exits, clean up the GPIO
+# When the program exits, clean up the GPIO (only once)
 atexit.register(cleanup_gpio)
 
 
 # KeyboardInterrupt
 def signal_handler(sig, frame):
-    print("Çıkış yapılıyor, GPIO temizleniyor...")
+    print("Exiting, cleaning up GPIO...")
     cleanup_gpio()
     sys.exit(0)
 
@@ -103,7 +103,7 @@ def control_servo():
         GPIO.output(SERVO_PIN, False)
         pwm.ChangeDutyCycle(0)
 
-        # Bekle
+        # Wait
         time.sleep(1)
 
         # First, return to 0 degree
@@ -507,10 +507,10 @@ def calculate_points(height):
     if height < 100:  # Too small, likely false positive
         points = 0
         size = "too small - rejected"
-    elif height < 300:  # Small bottle
+    elif height < 450:  # Small bottle
         points = BOTTLE_POINTS["small"]
         size = "small"
-    elif height < 450:  # Medium bottle
+    elif height < 600:  # Medium bottle
         points = BOTTLE_POINTS["medium"]
         size = "medium"
     else:  # Large bottle
