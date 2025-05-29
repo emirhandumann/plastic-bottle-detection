@@ -6,6 +6,7 @@ document.addEventListener('alpine:init', () => {
         smallBottles: 0,
         mediumBottles: 0,
         largeBottles: 0,
+        qrCodeIsImage: false,
 
         async captureImage() {
             this.processing = true;
@@ -36,8 +37,9 @@ document.addEventListener('alpine:init', () => {
                         this.mediumBottles = detectData.debug_info.bottle_counts.medium || 0;
                         this.largeBottles = detectData.debug_info.bottle_counts.large || 0;
                         
-                        // QR kodu göster
+                        // QR kodu veya hata mesajını göster
                         this.qrCode = detectData.qr_code;
+                        this.qrCodeIsImage = this.qrCode && this.qrCode.length > 100; // base64 ise uzun olur
                     } else {
                         console.error('Detection failed:', detectData.error);
                         alert('Şişe tespiti başarısız oldu. Lütfen tekrar deneyin.');

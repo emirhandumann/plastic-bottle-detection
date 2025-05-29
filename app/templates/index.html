@@ -82,7 +82,7 @@
             <div class="bg-white rounded-2xl shadow-lg p-6">
                 <div class="text-center">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4">Scan QR Code to Get Your Points</h3>
-                    <template x-if="qrCode">
+                    <template x-if="qrCodeIsImage && qrCode">
                         <div>
                             <img :src="'data:image/png;base64,' + qrCode" 
                                  alt="QR Code" 
@@ -91,6 +91,12 @@
                                 <i class="fas fa-info-circle mr-1"></i>
                                 Scan this QR code with the GreenEarn mobile app
                             </p>
+                        </div>
+                    </template>
+                    <template x-if="!qrCodeIsImage && qrCode">
+                        <div class="text-red-600 font-bold text-base mt-4">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <span x-text="qrCode"></span>
                         </div>
                     </template>
                     <template x-if="!qrCode">
