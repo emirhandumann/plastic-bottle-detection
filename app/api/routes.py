@@ -15,6 +15,7 @@ import RPi.GPIO as GPIO
 import atexit
 import signal
 import sys
+import requests
 
 # Global değişkenler
 picam2 = None
@@ -23,6 +24,34 @@ INPUT_WIDTH = 960
 INPUT_HEIGHT = 960
 CONFIDENCE_THRESHOLD = 0.5
 NMS_THRESHOLD = 0.4
+
+# Şişe puanları (default)
+BOTTLE_POINTS = {"small": 10, "medium": 20, "large": 30}
+
+# Azure servisinden puanları çek
+AZURE_POINTS_URL = "http://4.157.140.60:8000/api/bottles/points-info"
+
+
+def fetch_bottle_points():
+    global BOTTLE_POINTS
+    try:
+        resp = requests.get(AZURE_POINTS_URL, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            BOTTLE_POINTS = {
+                "small": data.get("smallBottlePoints", 10),
+                "medium": data.get("mediumBottlePoints", 20),
+                "large": data.get("largeBottlePoints", 30),
+            }
+            print(f"Şişe puanları Azure'dan güncellendi: {BOTTLE_POINTS}")
+        else:
+            print(f"Azure puan servisi başarısız: {resp.status_code}")
+    except Exception as e:
+        print(f"Azure puan servisine bağlanılamadı: {str(e)}")
+
+
+# Uygulama başında puanları çek
+fetch_bottle_points()
 
 # GPIO pin num
 SERVO_PIN = 14
@@ -472,21 +501,20 @@ def detect():
 
 
 def calculate_points(height):
-    """Calculate points based on bottle height"""
+
     print(f"Calculating points for height: {height}")
 
-    # Based on your terminal output, bottles appear to have heights around 400-500 pixels
     if height < 100:  # Too small, likely false positive
         points = 0
         size = "too small - rejected"
     elif height < 300:  # Small bottle
-        points = 10
+        points = BOTTLE_POINTS["small"]
         size = "small"
     elif height < 450:  # Medium bottle
-        points = 20
+        points = BOTTLE_POINTS["medium"]
         size = "medium"
     else:  # Large bottle
-        points = 30
+        points = BOTTLE_POINTS["large"]
         size = "large"
 
     print(f"Bottle size: {size}, Points: {points}")
@@ -505,30 +533,30 @@ def visualize_detections(image, detections, save_path=None):
         points = det["points"]
         height = y2 - y1
 
-        # Boyuta göre renk seç
+        # Select color based on size
         if height < 300:
-            color = (255, 0, 0)  # Mavi - Küçük
+            color = (255, 0, 0)  # Blue - Small
             label_size = "Small"
         elif height < 450:
-            color = (0, 255, 255)  # Sarı - Orta
+            color = (0, 255, 255)  # Yellow - Medium
             label_size = "Medium"
         else:
-            color = (0, 0, 255)  # Kırmızı - Büyük
+            color = (0, 0, 255)  # Red - Large
             label_size = "Large"
 
         # Debug output of the actual box coordinates
         print(f"Drawing box at: x1={x1}, y1={y1}, x2={x2}, y2={y2}, height={height}")
 
-        # Kutunun içini yarı saydam doldur
+        # Fill the box inside with semi-transparent
         overlay = vis_image.copy()
         cv2.rectangle(overlay, (x1, y1), (x2, y2), color, -1)
         alpha = 0.2  # Saydamlık
         cv2.addWeighted(overlay, alpha, vis_image, 1 - alpha, 0, vis_image)
 
-        # Kenarlık çiz
+        # Draw border
         cv2.rectangle(vis_image, (x1, y1), (x2, y2), color, 2)
 
-        # Etiket
+        # Label
         label = f"{label_size} | {conf:.2f} | {points}pts"
         cv2.putText(
             vis_image,
