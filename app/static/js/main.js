@@ -7,6 +7,7 @@ document.addEventListener('alpine:init', () => {
         mediumBottles: 0,
         largeBottles: 0,
         qrCodeIsImage: false,
+        greenPoints: 0,
 
         async captureImage() {
             this.processing = true;
@@ -36,7 +37,8 @@ document.addEventListener('alpine:init', () => {
                         this.smallBottles = detectData.debug_info.bottle_counts.small || 0;
                         this.mediumBottles = detectData.debug_info.bottle_counts.medium || 0;
                         this.largeBottles = detectData.debug_info.bottle_counts.large || 0;
-                        
+                        // Update green points
+                        this.greenPoints = detectData.debug_info.total_points || 0;
                         // Show QR code or error message
                         this.qrCode = detectData.qr_code;
                         // PNG base64's usually start with 'iVBOR' and are long

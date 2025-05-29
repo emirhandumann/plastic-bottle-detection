@@ -481,7 +481,7 @@ def detect():
         if total_points > 0:
             qr_data = generate_qr_code(total_points, bottle_counts)
         else:
-            qr_data = "Something went wrong! No bottles detected in the container, please check the container. If you are experiencing a problem, please contact the support team!"
+            qr_data = "Something went wrong! No bottles detected in the container, please check the container. If you are experiencing a problem, please contact the support team at support@greenearn.com!"
 
         return jsonify(
             {
