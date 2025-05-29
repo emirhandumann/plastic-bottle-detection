@@ -408,7 +408,8 @@ def detect():
         # Visualize detections
         if detections and len(detections) > 0:
             visualize_detections(image_np, detections, save_path="debug_detection.jpg")
-            # Şişe tespiti başarılı olduğunda servo motoru kontrol et
+            # 3 saniye bekle ve sonra servo motoru kontrol et
+            time.sleep(3)
             control_servo()
 
         # Şişe sayılarını hesapla
