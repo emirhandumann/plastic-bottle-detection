@@ -12,6 +12,9 @@ import hashlib
 from PIL import Image
 from picamera2 import Picamera2
 import RPi.GPIO as GPIO
+import atexit
+import signal
+import sys
 
 # Global değişkenler
 picam2 = None
@@ -24,20 +27,34 @@ NMS_THRESHOLD = 0.4
 # GPIO pin num
 SERVO_PIN = 14
 
-# GPIO modunu ayarla
+# GPIO modunu ayarla ve PWM başlat (sadece bir kez)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(SERVO_PIN, GPIO.OUT)
 pwm = GPIO.PWM(SERVO_PIN, 50)
 pwm.start(0)
 
 
+def cleanup_gpio():
+    pwm.stop()
+    GPIO.cleanup()
+
+
+# Program sonlanırken GPIO temizliği için
+atexit.register(cleanup_gpio)
+
+
+# KeyboardInterrupt için
+def signal_handler(sig, frame):
+    print("Çıkış yapılıyor, GPIO temizleniyor...")
+    cleanup_gpio()
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, signal_handler)
+
+
 def control_servo():
     try:
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(SERVO_PIN, GPIO.OUT)
-        pwm = GPIO.PWM(SERVO_PIN, 50)
-        pwm.start(0)
-
         # 0 derece
         duty = 0 / 18 + 2
         GPIO.output(SERVO_PIN, True)
@@ -81,8 +98,6 @@ def control_servo():
 
     except Exception as e:
         print(f"Servo motor kontrol hatası: {str(e)}")
-    finally:
-        pwm.stop()
 
 
 def cleanup_camera():
