@@ -11,14 +11,14 @@ document.addEventListener('alpine:init', () => {
         async captureImage() {
             this.processing = true;
             try {
-                // Kamera görüntüsünü al
+                // Capture image from camera
                 const response = await fetch('/api/capture');
                 const data = await response.json();
                 
                 if (data.success) {
                     this.imagePreview = 'data:image/jpeg;base64,' + data.image;
                     
-                    // Görüntüyü işle ve şişeleri tespit et
+                    // Process image and detect bottles
                     const detectResponse = await fetch('/api/detect', {
                         method: 'POST',
                         headers: {
@@ -32,25 +32,30 @@ document.addEventListener('alpine:init', () => {
                     const detectData = await detectResponse.json();
                     
                     if (detectData.success) {
-                        // Şişe sayılarını güncelle
+                        // Update bottle counts
                         this.smallBottles = detectData.debug_info.bottle_counts.small || 0;
                         this.mediumBottles = detectData.debug_info.bottle_counts.medium || 0;
                         this.largeBottles = detectData.debug_info.bottle_counts.large || 0;
                         
-                        // QR kodu veya hata mesajını göster
+                        // Show QR code or error message
                         this.qrCode = detectData.qr_code;
-                        this.qrCodeIsImage = this.qrCode && this.qrCode.length > 100; // base64 ise uzun olur
+                        // PNG base64's usually start with 'iVBOR' and are long
+                        this.qrCodeIsImage = this.qrCode && this.qrCode.length > 100 && this.qrCode.startsWith('iVBOR');
                     } else {
-                        console.error('Detection failed:', detectData.error);
-                        alert('Şişe tespiti başarısız oldu. Lütfen tekrar deneyin.');
+                        this.qrCode = null;
+                        this.qrCodeIsImage = false;
                     }
                 } else {
+                    this.qrCode = null;
+                    this.qrCodeIsImage = false;
                     console.error('Capture failed:', data.error);
-                    alert('Kamera görüntüsü alınamadı. Lütfen tekrar deneyin.');
+                    alert('Camera image capture failed. Please try again.');
                 }
             } catch (error) {
+                this.qrCode = null;
+                this.qrCodeIsImage = false;
                 console.error('Error:', error);
-                alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+                alert('An error occurred. Please try again.');
             } finally {
                 this.processing = false;
             }
