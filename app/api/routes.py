@@ -16,6 +16,7 @@ import atexit
 import signal
 import sys
 import requests
+import uuid
 
 # Global variables
 picam2 = None
@@ -577,9 +578,9 @@ def visualize_detections(image, detections, save_path=None):
 
 
 def generate_qr_code(points, bottle_counts):
-    """Generate QR code in the desired format"""
     qr_data = {
-        "containerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "qrCodeId": str(uuid.uuid4()),
+        "containerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",  # statik UUID
         "points": points,
         "numberOfSmallBottles": bottle_counts.get("small", 0),
         "numberOfMediumBottles": bottle_counts.get("medium", 0),
